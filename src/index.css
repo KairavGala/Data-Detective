@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/motion.css";
+@import "./styles/base.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/**
+ * Tailwind CSS v4 @theme bridge mapping Data Detective design tokens
+ * to utility classes for seamless use across future modules.
+ */
+@theme {
+  --color-dd-canvas: var(--dd-bg-canvas);
+  --color-dd-backdrop: var(--dd-bg-backdrop);
+  --color-dd-recessed: var(--dd-surface-recessed);
+  --color-dd-surface: var(--dd-surface-primary);
+  --color-dd-elevated: var(--dd-surface-elevated);
+  --color-dd-hover: var(--dd-surface-hover);
+
+  --color-dd-ink: var(--dd-text-primary);
+  --color-dd-ink-secondary: var(--dd-text-secondary);
+  --color-dd-ink-muted: var(--dd-text-muted);
+
+  --color-dd-teal: var(--dd-accent-teal);
+  --color-dd-teal-hover: var(--dd-accent-teal-hover);
+  --color-dd-verified: var(--dd-status-verified);
+  --color-dd-warning: var(--dd-status-warning);
+  --color-dd-anomaly: var(--dd-status-anomaly);
+  --color-dd-neutral: var(--dd-status-neutral);
+
+  --font-sans: var(--dd-font-sans);
+  --font-mono: var(--dd-font-mono);
+}

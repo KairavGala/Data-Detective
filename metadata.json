@@ -1,0 +1,6 @@
+{
+  "name": "Data Detective",
+  "description": "An AI-powered forensic data investigation platform transforming CSV and Excel datasets into evidence-backed discoveries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

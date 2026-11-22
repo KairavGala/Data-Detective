@@ -1,0 +1,119 @@
+import { useCallback, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BootSequence } from '@/components/cinematic/BootSequence';
+import { AppShell } from '@/components/layout/AppShell';
+import { DatasetProvider } from '@/context/DatasetContext';
+import { OverviewPage } from '@/features/overview/OverviewPage';
+import { SettingsPage } from '@/features/settings/SettingsPage';
+import { ModulePlaceholderPage } from '@/features/workspace/ModulePlaceholderPage';
+
+const BOOT_SESSION_KEY = 'dd_boot_completed';
+const BOOT_SKIP_PREF_KEY = 'dd_skip_boot_startup';
+
+function readSkipPreference(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(BOOT_SKIP_PREF_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function shouldShowBootInitially(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (readSkipPreference()) return false;
+  try {
+    return window.sessionStorage.getItem(BOOT_SESSION_KEY) !== 'true';
+  } catch {
+    return true;
+  }
+}
+
+interface AppWorkspaceProps {
+  readonly initialSkipBoot?: boolean;
+}
+
+export function AppWorkspace({ initialSkipBoot }: AppWorkspaceProps = {}) {
+  const [skipBootOnStartup, setSkipBootOnStartupState] = useState<boolean>(
+    () => initialSkipBoot ?? readSkipPreference(),
+  );
+  const [showBootSequence, setShowBootSequence] = useState<boolean>(() =>
+    initialSkipBoot ? false : shouldShowBootInitially(),
+  );
+
+  const handleBootComplete = useCallback(() => {
+    setShowBootSequence(false);
+    try {
+      window.sessionStorage.setItem(BOOT_SESSION_KEY, 'true');
+    } catch {
+      // Ignore storage restrictions
+    }
+  }, []);
+
+  const handleReplayBoot = useCallback(() => {
+    setShowBootSequence(true);
+  }, []);
+
+  const handleSetSkipBootOnStartup = useCallback((skip: boolean) => {
+    setSkipBootOnStartupState(skip);
+    try {
+      window.localStorage.setItem(BOOT_SKIP_PREF_KEY, String(skip));
+    } catch {
+      // Ignore storage restrictions
+    }
+  }, []);
+
+  return (
+    <DatasetProvider>
+      {showBootSequence && <BootSequence onComplete={handleBootComplete} />}
+
+      <Routes>
+        <Route
+          element={
+            <AppShell
+              onReplayBoot={handleReplayBoot}
+              skipBootOnStartup={skipBootOnStartup}
+              onSetSkipBootOnStartup={handleSetSkipBootOnStartup}
+            />
+          }
+        >
+          <Route index element={<OverviewPage />} />
+          <Route
+            path="explorer"
+            element={<ModulePlaceholderPage routeId="explorer" />}
+          />
+          <Route
+            path="analysis"
+            element={<ModulePlaceholderPage routeId="analysis" />}
+          />
+          <Route
+            path="visualizations"
+            element={<ModulePlaceholderPage routeId="visualizations" />}
+          />
+          <Route
+            path="investigation"
+            element={<ModulePlaceholderPage routeId="investigation" />}
+          />
+          <Route
+            path="assistant"
+            element={<ModulePlaceholderPage routeId="assistant" />}
+          />
+          <Route
+            path="reports"
+            element={<ModulePlaceholderPage routeId="reports" />}
+          />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </DatasetProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppWorkspace />
+    </BrowserRouter>
+  );
+}

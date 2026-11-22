@@ -1,0 +1,116 @@
+/**
+ * Data Detective — Design System Tokens
+ * Cinematic forensic & investigative analytical palette, typography,
+ * surfaces, borders, spacing, radii, shadows, and layering tokens.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Canvas & Layered Charcoal Surfaces ─────────────────────────────── */
+  --dd-bg-canvas: #07090b;
+  --dd-bg-backdrop: #0b0e12;
+  --dd-surface-recessed: #0c1015;
+  --dd-surface-primary: #11161c;
+  --dd-surface-elevated: #171d25;
+  --dd-surface-hover: #1d2530;
+  --dd-surface-overlay: rgba(7, 9, 11, 0.86);
+
+  /* ── Hairline Borders & Technical Rules ─────────────────────────────── */
+  --dd-border-subtle: rgba(212, 222, 232, 0.08);
+  --dd-border-default: rgba(212, 222, 232, 0.14);
+  --dd-border-strong: rgba(212, 222, 232, 0.24);
+  --dd-border-accent: rgba(68, 148, 144, 0.42);
+  --dd-grid-line: rgba(212, 222, 232, 0.032);
+
+  /* ── Typography Ink (WCAG AA on near-black / charcoal) ──────────────── */
+  --dd-text-primary: #e5e9ee;
+  --dd-text-secondary: #9aa5b1;
+  --dd-text-muted: #72808e;
+  --dd-text-inverse: #07090b;
+
+  /* ── Primary Analytical Accent (Muted Teal) ─────────────────────────── */
+  --dd-accent-teal: #449490;
+  --dd-accent-teal-hover: #53a8a3;
+  --dd-accent-teal-muted: #2f6c69;
+  --dd-accent-teal-dim: rgba(68, 148, 144, 0.12);
+  --dd-accent-teal-border: rgba(68, 148, 144, 0.36);
+
+  /* ── Semantic Investigative Signals (Restrained, Non-Neon) ──────────── */
+  --dd-status-verified: #549174;
+  --dd-status-verified-dim: rgba(84, 145, 116, 0.12);
+  --dd-status-verified-border: rgba(84, 145, 116, 0.34);
+
+  --dd-status-warning: #c29243;
+  --dd-status-warning-dim: rgba(194, 146, 67, 0.12);
+  --dd-status-warning-border: rgba(194, 146, 67, 0.34);
+
+  --dd-status-anomaly: #b54d4d;
+  --dd-status-anomaly-dim: rgba(181, 77, 77, 0.13);
+  --dd-status-anomaly-border: rgba(181, 77, 77, 0.36);
+
+  --dd-status-neutral: #7b8794;
+  --dd-status-neutral-dim: rgba(123, 135, 148, 0.12);
+  --dd-status-neutral-border: rgba(123, 135, 148, 0.28);
+
+  /* ── Typography Families ────────────────────────────────────────────── */
+  --dd-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  --dd-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, 'Liberation Mono', monospace;
+
+  /* ── Typographic Scale ──────────────────────────────────────────────── */
+  --dd-text-display: clamp(1.875rem, 2.8vw, 2.5rem);
+  --dd-text-h1: 1.5rem;
+  --dd-text-h2: 1.125rem;
+  --dd-text-h3: 0.9375rem;
+  --dd-text-body: 0.9375rem;
+  --dd-text-sm: 0.8125rem;
+  --dd-text-meta: 0.75rem;
+  --dd-text-micro: 0.6875rem;
+
+  --dd-leading-tight: 1.2;
+  --dd-leading-snug: 1.35;
+  --dd-leading-normal: 1.55;
+  --dd-leading-relaxed: 1.65;
+
+  --dd-tracking-tight: -0.02em;
+  --dd-tracking-normal: 0.005em;
+  --dd-tracking-technical: 0.04em;
+  --dd-tracking-dossier: 0.08em;
+
+  /* ── Spatial Rhythm & Layout ────────────────────────────────────────── */
+  --dd-space-1: 0.25rem;
+  --dd-space-2: 0.5rem;
+  --dd-space-3: 0.75rem;
+  --dd-space-4: 1rem;
+  --dd-space-5: 1.25rem;
+  --dd-space-6: 1.5rem;
+  --dd-space-8: 2rem;
+  --dd-space-10: 2.5rem;
+  --dd-space-12: 3rem;
+  --dd-container-max: 75rem;
+
+  /* ── Crisp Architectural Radii ──────────────────────────────────────── */
+  --dd-radius-xs: 2px;
+  --dd-radius-sm: 4px;
+  --dd-radius-md: 6px;
+  --dd-radius-lg: 8px;
+
+  /* ── Restrained Shadows & Elevation ─────────────────────────────────── */
+  --dd-shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.28);
+  --dd-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.5),
+    0 18px 40px rgba(0, 0, 0, 0.36);
+  --dd-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 2px 6px rgba(0, 0, 0, 0.35);
+  --dd-shadow-focus: 0 0 0 2px var(--dd-bg-canvas),
+    0 0 0 4px var(--dd-accent-teal);
+
+  /* ── Layering (Z-Index) ─────────────────────────────────────────────── */
+  --dd-z-base: 0;
+  --dd-z-sticky: 20;
+  --dd-z-overlay: 40;
+  --dd-z-modal: 60;
+  --dd-z-toast: 80;
+}

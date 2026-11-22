@@ -1,0 +1,129 @@
+/**
+ * Data Detective — Base Global Styles & Visual Treatments
+ * Typography hierarchy, dark optical compensation, tabular numeric discipline,
+ * subtle technical rules, dossier labels, and accessible focus indicators.
+ */
+
+@layer base {
+  html {
+    background-color: var(--dd-bg-canvas);
+    color: var(--dd-text-primary);
+    font-family: var(--dd-font-sans);
+    font-size: 16px;
+    line-height: var(--dd-leading-normal);
+    letter-spacing: var(--dd-tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--dd-bg-canvas);
+    color: var(--dd-text-primary);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--dd-text-primary);
+    letter-spacing: var(--dd-tracking-tight);
+    line-height: var(--dd-leading-tight);
+    text-wrap: balance;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--dd-font-mono);
+  }
+
+  ::selection {
+    background-color: var(--dd-accent-teal-dim);
+    color: var(--dd-text-primary);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--dd-accent-teal);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Tabular Numerical Alignment ──────────────────────────────────────── */
+.dd-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Subtle Forensic Coordinate Grid Backdrop ─────────────────────────── */
+.dd-grid-backdrop {
+  background-image:
+    linear-gradient(to right, var(--dd-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--dd-grid-line) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── Layered Panel Surfaces ───────────────────────────────────────────── */
+.dd-surface-primary {
+  background-color: var(--dd-surface-primary);
+  border: 1px solid var(--dd-border-subtle);
+  border-radius: var(--dd-radius-md);
+}
+
+.dd-surface-elevated {
+  background-color: var(--dd-surface-elevated);
+  border: 1px solid var(--dd-border-default);
+  border-radius: var(--dd-radius-md);
+  box-shadow: var(--dd-shadow-panel);
+}
+
+.dd-surface-recessed {
+  background-color: var(--dd-surface-recessed);
+  border: 1px solid var(--dd-border-subtle);
+  border-radius: var(--dd-radius-sm);
+  box-shadow: var(--dd-shadow-inset);
+}
+
+/* ── Technical Separators ─────────────────────────────────────────────── */
+.dd-separator {
+  height: 1px;
+  width: 100%;
+  background-color: var(--dd-border-subtle);
+  border: 0;
+}
+
+.dd-separator-dashed {
+  height: 0;
+  width: 100%;
+  border: 0;
+  border-top: 1px dashed var(--dd-border-default);
+}
+
+/* ── Classified Document-Inspired Typography & Framing ────────────────── */
+.dd-dossier-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--dd-font-mono);
+  font-size: var(--dd-text-micro);
+  font-weight: 500;
+  letter-spacing: var(--dd-tracking-dossier);
+  line-height: 1.2;
+  color: var(--dd-text-secondary);
+}
+
+.dd-case-id {
+  font-family: var(--dd-font-mono);
+  font-size: var(--dd-text-meta);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--dd-tracking-technical);
+  color: var(--dd-accent-teal);
+}
+
+/* ── Subtle Dark Scrollbars ───────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dd-border-default) transparent;
+}

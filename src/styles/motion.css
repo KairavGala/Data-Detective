@@ -1,0 +1,235 @@
+/**
+ * Data Detective — Motion Design System
+ * Reusable animation tokens, easing curves, and purposeful forensic
+ * keyframes for future investigative modules.
+ *
+ * All transitions prioritize compositor-friendly properties (transform,
+ * opacity, clip-path, stroke-dashoffset) and honor prefers-reduced-motion.
+ */
+
+:root {
+  /* ── Motion Durations ───────────────────────────────────────────────── */
+  --dd-duration-instant: 100ms;
+  --dd-duration-fast: 160ms;
+  --dd-duration-base: 240ms;
+  --dd-duration-slow: 420ms;
+  --dd-duration-trace: 900ms;
+  --dd-duration-scan: 2800ms;
+  --dd-duration-radar: 6400ms;
+
+  /* ── Easing Curves ──────────────────────────────────────────────────── */
+  --dd-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --dd-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --dd-ease-forensic: cubic-bezier(0.4, 0, 0.2, 1);
+  --dd-ease-linear: linear;
+}
+
+/* ── 1. Scanning Sweeps ───────────────────────────────────────────────── */
+@keyframes dd-scan-sweep-x {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  85% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes dd-scan-sweep-y {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.65;
+  }
+  85% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* ── 2. Radar-Like Rotations ──────────────────────────────────────────── */
+@keyframes dd-radar-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 3. Terminal Text Reveals ─────────────────────────────────────────── */
+@keyframes dd-terminal-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.35;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+@keyframes dd-cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ── 4. Evidence Highlighting ─────────────────────────────────────────── */
+@keyframes dd-evidence-highlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(68, 148, 144, 0);
+    border-color: var(--dd-border-default);
+  }
+  40% {
+    box-shadow: 0 0 0 2px rgba(68, 148, 144, 0.28);
+    border-color: var(--dd-accent-teal);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(68, 148, 144, 0);
+    border-color: var(--dd-border-accent);
+  }
+}
+
+/* ── 5. Connection-Line Animations (SVG paths) ────────────────────────── */
+@keyframes dd-connection-trace {
+  from {
+    stroke-dashoffset: var(--dd-path-length, 100);
+    opacity: 0.25;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* ── 6. Subtle Data-Loading Effects ───────────────────────────────────── */
+@keyframes dd-data-load-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ── 7. File-Processing Transitions ───────────────────────────────────── */
+@keyframes dd-file-process-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Reusable Motion Utility Classes ──────────────────────────────────── */
+.dd-anim-scan-x {
+  animation: dd-scan-sweep-x var(--dd-duration-scan) var(--dd-ease-forensic)
+    infinite;
+  will-change: transform, opacity;
+}
+
+.dd-anim-scan-y {
+  animation: dd-scan-sweep-y var(--dd-duration-scan) var(--dd-ease-forensic)
+    infinite;
+  will-change: transform, opacity;
+}
+
+.dd-anim-radar {
+  animation: dd-radar-rotate var(--dd-duration-radar) var(--dd-ease-linear)
+    infinite;
+  will-change: transform;
+}
+
+.dd-anim-terminal-reveal {
+  animation: dd-terminal-reveal var(--dd-duration-slow) var(--dd-ease-settle)
+    both;
+}
+
+.dd-anim-cursor {
+  animation: dd-cursor-blink 1050ms steps(1, end) infinite;
+}
+
+.dd-anim-evidence-highlight {
+  animation: dd-evidence-highlight var(--dd-duration-trace)
+    var(--dd-ease-settle) 1 both;
+}
+
+.dd-anim-connection-trace {
+  stroke-dasharray: var(--dd-path-length, 100);
+  animation: dd-connection-trace var(--dd-duration-trace) var(--dd-ease-settle)
+    both;
+}
+
+.dd-anim-data-load {
+  position: relative;
+  overflow: hidden;
+}
+
+.dd-anim-data-load::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212, 222, 232, 0.05) 50%,
+    transparent 100%
+  );
+  animation: dd-data-load-sweep 1800ms var(--dd-ease-forensic) infinite;
+  pointer-events: none;
+}
+
+.dd-anim-file-enter {
+  animation: dd-file-process-enter var(--dd-duration-base) var(--dd-ease-settle)
+    both;
+}
+
+/* ── Accessibility: Reduced Motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dd-duration-instant: 0.01ms;
+    --dd-duration-fast: 0.01ms;
+    --dd-duration-base: 0.01ms;
+    --dd-duration-slow: 0.01ms;
+    --dd-duration-trace: 0.01ms;
+    --dd-duration-scan: 0.01ms;
+    --dd-duration-radar: 0.01ms;
+  }
+
+  .dd-anim-scan-x,
+  .dd-anim-scan-y,
+  .dd-anim-radar,
+  .dd-anim-cursor,
+  .dd-anim-data-load::after {
+    animation: none;
+  }
+
+  .dd-anim-terminal-reveal,
+  .dd-anim-evidence-highlight,
+  .dd-anim-connection-trace,
+  .dd-anim-file-enter {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
