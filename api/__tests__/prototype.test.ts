@@ -145,39 +145,182 @@ describe('Stage 1 AI Prototype — Config & Key Boundary (Test A)', () => {
     expect(overCap.geminiTimeoutMs).toBeLessThan(overCap.handlerTimeoutMs);
   });
 
-  it('reports configuration state on GET /api/ai/health without exposing secrets', async () => {
-    const originalKey = process.env.GEMINI_API_KEY;
+  it('selects DATA_DETECTIVE_GEMINI_API_KEY first, falls back to GEMINI_API_KEY, and returns null when both are absent', () => {
+    const bothSet = loadAiServerConfig({
+      DATA_DETECTIVE_GEMINI_API_KEY: '  custom-primary-key  ',
+      GEMINI_API_KEY: 'legacy-fallback-key',
+    });
+    expect(bothSet.apiKey).toBe('custom-primary-key');
+
+    const customOnly = loadAiServerConfig({
+      DATA_DETECTIVE_GEMINI_API_KEY: 'custom-only-key',
+    });
+    expect(customOnly.apiKey).toBe('custom-only-key');
+
+    const fallbackOnly = loadAiServerConfig({
+      GEMINI_API_KEY: '  legacy-fallback-key  ',
+    });
+    expect(fallbackOnly.apiKey).toBe('legacy-fallback-key');
+
+    const blankCustomFallsBack = loadAiServerConfig({
+      DATA_DETECTIVE_GEMINI_API_KEY: '   ',
+      GEMINI_API_KEY: 'legacy-fallback-key',
+    });
+    expect(blankCustomFallsBack.apiKey).toBe('legacy-fallback-key');
+
+    const neitherSet = loadAiServerConfig({
+      DATA_DETECTIVE_GEMINI_API_KEY: '   ',
+      GEMINI_API_KEY: '',
+    });
+    expect(neitherSet.apiKey).toBeNull();
+  });
+
+  it('reports configured state on GET /api/ai/health for custom key, fallback key, and missing keys without exposing secrets', async () => {
+    const originalCustomKey = process.env.DATA_DETECTIVE_GEMINI_API_KEY;
+    const originalFallbackKey = process.env.GEMINI_API_KEY;
+    const customSecret = 'custom-secret-never-expose-777';
+    const fallbackSecret = 'fallback-secret-never-expose-888';
+
     try {
-      delete process.env.GEMINI_API_KEY;
       const healthServer = await startNodeHandlerServer(healthHandler);
       activeServers.push(healthServer);
 
-      const res = await fetch(`${healthServer.baseUrl}/api/ai/health`);
-      const body = (await res.json()) as HealthResponse;
+      // 1. Both absent -> configured: false
+      delete process.env.DATA_DETECTIVE_GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+      const missingRes = await fetch(`${healthServer.baseUrl}/api/ai/health`);
+      const missingBody = (await missingRes.json()) as HealthResponse;
 
-      expect(res.status).toBe(200);
-      expect(res.headers.get('cache-control')).toBe('no-store');
-      expect(res.headers.get('x-request-id')).toMatch(/^req_/);
-      expect(body.ok).toBe(true);
-      expect(body.configured).toBe(false);
-      expect(body.model).toBe(DEFAULT_GEMINI_MODEL);
-      expect(body.sdkAttemptsConfigured).toBe(SDK_ATTEMPTS_CONFIGURED);
-      expect(body.timeouts).toEqual({
+      expect(missingRes.status).toBe(200);
+      expect(missingRes.headers.get('cache-control')).toBe('no-store');
+      expect(missingRes.headers.get('x-request-id')).toMatch(/^req_/);
+      expect(missingBody.ok).toBe(true);
+      expect(missingBody.configured).toBe(false);
+      expect(missingBody.model).toBe(DEFAULT_GEMINI_MODEL);
+      expect(missingBody.sdkAttemptsConfigured).toBe(SDK_ATTEMPTS_CONFIGURED);
+      expect(missingBody.timeouts).toEqual({
         geminiTimeoutMs: 18_000,
         handlerTimeoutMs: 22_000,
         frontendRecommendedTimeoutMs: 27_000,
         vercelMaxDurationSec: 30,
       });
+
+      // 2. Custom variable supplied -> configured: true and secret never exposed
+      process.env.DATA_DETECTIVE_GEMINI_API_KEY = customSecret;
+      const customRes = await fetch(`${healthServer.baseUrl}/api/ai/health`);
+      const customText = await customRes.text();
+      const customBody = JSON.parse(customText) as HealthResponse;
+      expect(customRes.status).toBe(200);
+      expect(customBody.configured).toBe(true);
+      expect(customText).not.toContain(customSecret);
+
+      // 3. Custom absent, GEMINI_API_KEY supplied -> configured: true and secret never exposed
+      delete process.env.DATA_DETECTIVE_GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = fallbackSecret;
+      const fallbackRes = await fetch(`${healthServer.baseUrl}/api/ai/health`);
+      const fallbackText = await fallbackRes.text();
+      const fallbackBody = JSON.parse(fallbackText) as HealthResponse;
+      expect(fallbackRes.status).toBe(200);
+      expect(fallbackBody.configured).toBe(true);
+      expect(fallbackText).not.toContain(fallbackSecret);
     } finally {
-      if (originalKey !== undefined) {
-        process.env.GEMINI_API_KEY = originalKey;
+      if (originalCustomKey !== undefined) {
+        process.env.DATA_DETECTIVE_GEMINI_API_KEY = originalCustomKey;
+      } else {
+        delete process.env.DATA_DETECTIVE_GEMINI_API_KEY;
+      }
+      if (originalFallbackKey !== undefined) {
+        process.env.GEMINI_API_KEY = originalFallbackKey;
+      } else {
+        delete process.env.GEMINI_API_KEY;
       }
     }
   });
 
-  it('returns 503 CONFIG_MISSING when GEMINI_API_KEY is unset and never calls upstream', async () => {
+  it('passes DATA_DETECTIVE_GEMINI_API_KEY over GEMINI_API_KEY to @google/genai and falls back when custom key is absent without leaking keys', async () => {
+    const logSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const customSecret = 'custom-key-priority-alpha-999';
+    const fallbackSecret = 'fallback-key-beta-888';
+
+    // Case 1: Both supplied -> custom key selected and sent to SDK
+    let sentKey = '';
+    const mockFetchCustom = vi.fn<typeof fetch>(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      sentKey = headers.get('x-goog-api-key') ?? '';
+      return buildGeminiSuccessResponse('Custom key verified.');
+    });
+
+    const customServer = await startNodeHandlerServer(
+      createPrototypeHandler({
+        loadConfig: () =>
+          loadAiServerConfig({
+            DATA_DETECTIVE_GEMINI_API_KEY: customSecret,
+            GEMINI_API_KEY: fallbackSecret,
+            AI_PROTOTYPE_ENABLED: 'true',
+          }),
+        customFetch: mockFetchCustom,
+      }),
+    );
+    activeServers.push(customServer);
+
+    const customRes = await fetch(`${customServer.baseUrl}/api/ai/prototype`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'text', prompt: 'Verify custom key selection' }),
+    });
+    const customResText = await customRes.text();
+    expect(customRes.status).toBe(200);
+    expect(sentKey).toBe(customSecret);
+    expect(customResText).not.toContain(customSecret);
+    expect(customResText).not.toContain(fallbackSecret);
+
+    // Case 2: Custom absent -> fallback GEMINI_API_KEY used
+    sentKey = '';
+    const mockFetchFallback = vi.fn<typeof fetch>(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      sentKey = headers.get('x-goog-api-key') ?? '';
+      return buildGeminiSuccessResponse('Fallback key verified.');
+    });
+
+    const fallbackServer = await startNodeHandlerServer(
+      createPrototypeHandler({
+        loadConfig: () =>
+          loadAiServerConfig({
+            GEMINI_API_KEY: fallbackSecret,
+            AI_PROTOTYPE_ENABLED: 'true',
+          }),
+        customFetch: mockFetchFallback,
+      }),
+    );
+    activeServers.push(fallbackServer);
+
+    const fallbackRes = await fetch(`${fallbackServer.baseUrl}/api/ai/prototype`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'text', prompt: 'Verify fallback key selection' }),
+    });
+    const fallbackResText = await fallbackRes.text();
+    expect(fallbackRes.status).toBe(200);
+    expect(sentKey).toBe(fallbackSecret);
+    expect(fallbackResText).not.toContain(fallbackSecret);
+
+    const serializedLogs = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(serializedLogs).not.toContain(customSecret);
+    expect(serializedLogs).not.toContain(fallbackSecret);
+  });
+
+  it('returns 503 CONFIG_MISSING when both DATA_DETECTIVE_GEMINI_API_KEY and GEMINI_API_KEY are absent and never calls upstream', async () => {
     const mockFetch = vi.fn<typeof fetch>();
-    const server = await launchPrototype({ apiKey: null }, mockFetch);
+    const server = await startNodeHandlerServer(
+      createPrototypeHandler({
+        loadConfig: () =>
+          loadAiServerConfig({
+            AI_PROTOTYPE_ENABLED: 'true',
+          }),
+        customFetch: mockFetch,
+      }),
+    );
+    activeServers.push(server);
 
     const res = await fetch(`${server.baseUrl}/api/ai/prototype`, {
       method: 'POST',

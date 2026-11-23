@@ -54,11 +54,29 @@ function resolvePrototypeEnabled(env: NodeJS.ProcessEnv): boolean {
   return env.VERCEL_ENV !== 'production';
 }
 
+/**
+ * Resolves the server-side Gemini API key with explicit precedence:
+ * 1. DATA_DETECTIVE_GEMINI_API_KEY (primary custom secret)
+ * 2. GEMINI_API_KEY (backward-compatible fallback)
+ */
+function resolveGeminiApiKey(env: NodeJS.ProcessEnv): string | null {
+  const customKey = env.DATA_DETECTIVE_GEMINI_API_KEY?.trim();
+  if (customKey && customKey.length > 0) {
+    return customKey;
+  }
+
+  const fallbackKey = env.GEMINI_API_KEY?.trim();
+  if (fallbackKey && fallbackKey.length > 0) {
+    return fallbackKey;
+  }
+
+  return null;
+}
+
 export function loadAiServerConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): AiServerConfig {
-  const rawKey = env.GEMINI_API_KEY?.trim();
-  const apiKey = rawKey && rawKey.length > 0 ? rawKey : null;
+  const apiKey = resolveGeminiApiKey(env);
 
   const rawModel = env.GEMINI_MODEL?.trim();
   const model = rawModel && rawModel.length > 0 ? rawModel : DEFAULT_GEMINI_MODEL;
