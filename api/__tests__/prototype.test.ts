@@ -350,6 +350,125 @@ describe('Stage 1 AI Prototype — Config & Key Boundary (Test A)', () => {
     expect(res.status).toBe(403);
     expect(body.error.code).toBe('PROTOTYPE_DISABLED');
   });
+
+  it('resolves AI_PROTOTYPE_ENABLED="true" (with whitespace trimming) identically across health and prototype handlers', async () => {
+    // Unit-level verification of resolvePrototypeEnabled() via loadAiServerConfig()
+    expect(
+      loadAiServerConfig({ AI_PROTOTYPE_ENABLED: 'true', VERCEL_ENV: 'preview' })
+        .prototypeEnabled,
+    ).toBe(true);
+    expect(
+      loadAiServerConfig({ AI_PROTOTYPE_ENABLED: '  true  ', VERCEL_ENV: 'preview' })
+        .prototypeEnabled,
+    ).toBe(true);
+    expect(
+      loadAiServerConfig({ AI_PROTOTYPE_ENABLED: 'TRUE', VERCEL_ENV: 'production' })
+        .prototypeEnabled,
+    ).toBe(true);
+    expect(
+      loadAiServerConfig({ AI_PROTOTYPE_ENABLED: '  true\n', VERCEL_ENV: 'production' })
+        .prototypeEnabled,
+    ).toBe(true);
+    expect(
+      loadAiServerConfig({ VERCEL_ENV: 'preview' }).prototypeEnabled,
+    ).toBe(true);
+    expect(
+      loadAiServerConfig({ VERCEL_ENV: 'production' }).prototypeEnabled,
+    ).toBe(false);
+    expect(
+      loadAiServerConfig({ AI_PROTOTYPE_ENABLED: 'false', VERCEL_ENV: 'preview' })
+        .prototypeEnabled,
+    ).toBe(false);
+
+    // End-to-end verification that GET /api/ai/health and POST /api/ai/prototype
+    // share the exact same live loadAiServerConfig(process.env) resolution.
+    const originalEnabled = process.env.AI_PROTOTYPE_ENABLED;
+    const originalVercelEnv = process.env.VERCEL_ENV;
+    const originalCustomKey = process.env.DATA_DETECTIVE_GEMINI_API_KEY;
+    const originalFallbackKey = process.env.GEMINI_API_KEY;
+
+    try {
+      const mockFetch = vi.fn<typeof fetch>(async () =>
+        buildGeminiSuccessResponse('Prototype enabled regression passed.'),
+      );
+      const healthServer = await startNodeHandlerServer(healthHandler);
+      const protoServer = await startNodeHandlerServer(
+        createPrototypeHandler({ customFetch: mockFetch }),
+      );
+      activeServers.push(healthServer, protoServer);
+
+      process.env.DATA_DETECTIVE_GEMINI_API_KEY = 'regression-test-key-001';
+      delete process.env.GEMINI_API_KEY;
+
+      // 1. Preview with AI_PROTOTYPE_ENABLED="true"
+      process.env.VERCEL_ENV = 'preview';
+      process.env.AI_PROTOTYPE_ENABLED = 'true';
+
+      const healthPreviewRes = await fetch(`${healthServer.baseUrl}/api/ai/health`);
+      const healthPreviewBody = (await healthPreviewRes.json()) as HealthResponse;
+      expect(healthPreviewRes.status).toBe(200);
+      expect(healthPreviewBody.prototypeEnabled).toBe(true);
+
+      const protoPreviewRes = await fetch(`${protoServer.baseUrl}/api/ai/prototype`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'text', prompt: 'Check enabled on preview' }),
+      });
+      expect(protoPreviewRes.status).toBe(200);
+
+      // 2. Whitespace-padded "  true  " even under VERCEL_ENV="production"
+      process.env.VERCEL_ENV = 'production';
+      process.env.AI_PROTOTYPE_ENABLED = '  true  ';
+
+      const healthTrimmedRes = await fetch(`${healthServer.baseUrl}/api/ai/health`);
+      const healthTrimmedBody = (await healthTrimmedRes.json()) as HealthResponse;
+      expect(healthTrimmedBody.prototypeEnabled).toBe(true);
+
+      const protoTrimmedRes = await fetch(`${protoServer.baseUrl}/api/ai/prototype`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'text', prompt: 'Check trimmed true' }),
+      });
+      expect(protoTrimmedRes.status).toBe(200);
+
+      // 3. Production with AI_PROTOTYPE_ENABLED unset -> both report disabled
+      delete process.env.AI_PROTOTYPE_ENABLED;
+
+      const healthProdRes = await fetch(`${healthServer.baseUrl}/api/ai/health`);
+      const healthProdBody = (await healthProdRes.json()) as HealthResponse;
+      expect(healthProdBody.prototypeEnabled).toBe(false);
+
+      const protoProdRes = await fetch(`${protoServer.baseUrl}/api/ai/prototype`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'text', prompt: 'Check disabled on production' }),
+      });
+      const protoProdBody = (await protoProdRes.json()) as PrototypeErrorResponse;
+      expect(protoProdRes.status).toBe(403);
+      expect(protoProdBody.error.code).toBe('PROTOTYPE_DISABLED');
+    } finally {
+      if (originalEnabled !== undefined) {
+        process.env.AI_PROTOTYPE_ENABLED = originalEnabled;
+      } else {
+        delete process.env.AI_PROTOTYPE_ENABLED;
+      }
+      if (originalVercelEnv !== undefined) {
+        process.env.VERCEL_ENV = originalVercelEnv;
+      } else {
+        delete process.env.VERCEL_ENV;
+      }
+      if (originalCustomKey !== undefined) {
+        process.env.DATA_DETECTIVE_GEMINI_API_KEY = originalCustomKey;
+      } else {
+        delete process.env.DATA_DETECTIVE_GEMINI_API_KEY;
+      }
+      if (originalFallbackKey !== undefined) {
+        process.env.GEMINI_API_KEY = originalFallbackKey;
+      } else {
+        delete process.env.GEMINI_API_KEY;
+      }
+    }
+  });
 });
 
 describe('Stage 1 AI Prototype — SDK Generation, Single Attempt & Validation (Tests B, C, D)', () => {
