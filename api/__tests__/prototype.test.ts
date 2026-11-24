@@ -333,7 +333,7 @@ describe('Stage 1 AI Prototype — Config & Key Boundary (Test A)', () => {
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe('CONFIG_MISSING');
     expect(body.requestId).toMatch(/^req_/);
-    expect(body.meta.sdkAttemptsConfigured).toBe(1);
+    expect(body.meta.sdkAttemptsConfigured).toBe(SDK_ATTEMPTS_CONFIGURED);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -505,7 +505,7 @@ describe('Stage 1 AI Prototype — SDK Generation, Single Attempt & Validation (
       text: 'Data Detective prototype operational with Gemini backend.',
     });
     expect(body.meta.model).toBe('gemini-4-hydrogen');
-    expect(body.meta.sdkAttemptsConfigured).toBe(1);
+    expect(body.meta.sdkAttemptsConfigured).toBe(SDK_ATTEMPTS_CONFIGURED);
     expect(body.meta.durationMs).toBeGreaterThanOrEqual(0);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(capturedUrl).toContain('models/gemini-4-hydrogen:generateContent');
@@ -581,10 +581,65 @@ describe('Stage 1 AI Prototype — SDK Generation, Single Attempt & Validation (
 });
 
 describe('Stage 1 AI Prototype — Retry Count & Error Matrix (Test F)', () => {
-  it('executes strictly 1 SDK attempt (0 retries) even on retryable 429 and 503 statuses', async () => {
+  it('retries transient HTTP 503 inside @google/genai and succeeds when a subsequent attempt returns 200', async () => {
+    let callCount = 0;
+    const mockFetch = vi.fn<typeof fetch>(async () => {
+      callCount += 1;
+      if (callCount < 3) {
+        return buildGeminiErrorResponse(
+          503,
+          'UNAVAILABLE',
+          'Service temporarily unavailable',
+        );
+      }
+      return buildGeminiSuccessResponse('Recovered cleanly on attempt 3.');
+    });
+
+    const server = await launchPrototype({}, mockFetch);
+
+    const res = await fetch(`${server.baseUrl}/api/ai/prototype`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'text', prompt: 'Transient 503 recovery check' }),
+    });
+    const body = (await res.json()) as PrototypeSuccessResponse;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data).toEqual({ text: 'Recovered cleanly on attempt 3.' });
+    expect(body.meta.sdkAttemptsConfigured).toBe(SDK_ATTEMPTS_CONFIGURED);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('caps persistent HTTP 503 at SDK_ATTEMPTS_CONFIGURED (3) and never retries non-503 statuses (429, 504)', async () => {
+    const logSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    // 1. Persistent 503 -> capped at strictly 3 attempts
+    const mockFetch503 = vi.fn<typeof fetch>(async () =>
+      buildGeminiErrorResponse(503, 'UNAVAILABLE', 'Service temporarily unavailable'),
+    );
+    const server503 = await launchPrototype({}, mockFetch503);
+
+    const res503 = await fetch(`${server503.baseUrl}/api/ai/prototype`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'text', prompt: 'Persistent 503 cap check' }),
+    });
+    const body503 = (await res503.json()) as PrototypeErrorResponse;
+
+    expect(res503.status).toBe(502);
+    expect(body503.error.code).toBe('UPSTREAM_ERROR');
+    expect(body503.meta.upstreamStatus).toBe(503);
+    expect(mockFetch503).toHaveBeenCalledTimes(SDK_ATTEMPTS_CONFIGURED);
+
+    const serializedLogs = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(serializedLogs).toContain('"upstreamStatus":503');
+    expect(serializedLogs).toContain('"upstreamErrorStatus":"UNAVAILABLE"');
+
+    // 2. Non-503 retryable-looking statuses (429, 504) -> strictly 1 attempt (0 retries)
     for (const [status, statusText, message, expectedCode, expectedHttp] of [
       [429, 'RESOURCE_EXHAUSTED', 'Quota exceeded', 'RATE_LIMITED', 429],
-      [503, 'UNAVAILABLE', 'Service temporarily unavailable', 'UPSTREAM_ERROR', 502],
+      [504, 'DEADLINE_EXCEEDED', 'Gateway timeout', 'UPSTREAM_TIMEOUT', 504],
     ] as const) {
       const mockFetch = vi.fn<typeof fetch>(async () =>
         buildGeminiErrorResponse(status, statusText, message),
@@ -594,13 +649,13 @@ describe('Stage 1 AI Prototype — Retry Count & Error Matrix (Test F)', () => {
       const res = await fetch(`${server.baseUrl}/api/ai/prototype`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'text', prompt: 'Retry check' }),
+        body: JSON.stringify({ mode: 'text', prompt: `Non-503 check ${status}` }),
       });
       const body = (await res.json()) as PrototypeErrorResponse;
 
       expect(res.status).toBe(expectedHttp);
       expect(body.error.code).toBe(expectedCode);
-      // Empirical proof against the real @google/genai SDK: strictly 1 HTTP call.
+      expect(body.meta.upstreamStatus).toBe(status);
       expect(mockFetch).toHaveBeenCalledTimes(1);
     }
   });

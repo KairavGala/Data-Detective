@@ -11,12 +11,26 @@ import type {
   PrototypeResponseMeta,
 } from './contracts.js';
 
+const SAFE_UPSTREAM_GRPC_STATUSES = new Set([
+  'UNAVAILABLE',
+  'DEADLINE_EXCEEDED',
+  'RESOURCE_EXHAUSTED',
+  'UNAUTHENTICATED',
+  'PERMISSION_DENIED',
+  'NOT_FOUND',
+  'INVALID_ARGUMENT',
+  'INTERNAL',
+  'ABORTED',
+  'FAILED_PRECONDITION',
+]);
+
 export class ApiPrototypeError extends Error {
   readonly code: ApiErrorCode;
   readonly statusCode: number;
   readonly retryable: boolean;
   readonly timeoutPhase?: 'gemini_sdk' | 'backend_deadline';
   readonly upstreamStatus?: number;
+  readonly upstreamErrorStatus?: string;
 
   constructor(options: {
     code: ApiErrorCode;
@@ -25,6 +39,7 @@ export class ApiPrototypeError extends Error {
     retryable?: boolean;
     timeoutPhase?: 'gemini_sdk' | 'backend_deadline';
     upstreamStatus?: number;
+    upstreamErrorStatus?: string;
   }) {
     super(options.message);
     this.name = 'ApiPrototypeError';
@@ -33,6 +48,7 @@ export class ApiPrototypeError extends Error {
     this.retryable = options.retryable ?? false;
     this.timeoutPhase = options.timeoutPhase;
     this.upstreamStatus = options.upstreamStatus;
+    this.upstreamErrorStatus = options.upstreamErrorStatus;
   }
 }
 
@@ -75,6 +91,39 @@ function extractMessageLower(err: unknown): string {
     }
   }
   return '';
+}
+
+/**
+ * Extracts only a strict allowlisted gRPC status enum (e.g. "UNAVAILABLE") from
+ * `@google/genai`'s serialized JSON error message for safe server telemetry.
+ * Never returns arbitrary provider error text, prompts, or credentials.
+ */
+function extractSafeUpstreamErrorStatus(err: unknown): string | undefined {
+  const rawMessage =
+    err instanceof Error
+      ? err.message
+      : err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
+        ? (err as { message: string }).message
+        : '';
+
+  if (!rawMessage.startsWith('{')) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(rawMessage) as { error?: { status?: unknown } };
+    const statusText = parsed?.error?.status;
+    if (typeof statusText === 'string') {
+      const normalized = statusText.trim().toUpperCase();
+      if (SAFE_UPSTREAM_GRPC_STATUSES.has(normalized)) {
+        return normalized;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 function isAbortOrTimeoutError(err: unknown): boolean {
@@ -128,18 +177,24 @@ export function classifyGeminiError(
     });
   }
 
+  const status = extractHttpStatus(err);
+  const upstreamErrorStatus = extractSafeUpstreamErrorStatus(err);
+  const messageLower = extractMessageLower(err);
+
   if (context.geminiTimedOut || isAbortOrTimeoutError(err)) {
     return new ApiPrototypeError({
       code: 'UPSTREAM_TIMEOUT',
       statusCode: 504,
-      message: 'Gemini request timed out before returning a response.',
+      message:
+        status === 504
+          ? 'Upstream Gemini service timed out before completing generation.'
+          : 'Gemini request timed out before returning a response.',
       retryable: true,
       timeoutPhase: 'gemini_sdk',
+      upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
-
-  const status = extractHttpStatus(err);
-  const messageLower = extractMessageLower(err);
 
   if (
     status === 401 ||
@@ -153,6 +208,8 @@ export function classifyGeminiError(
       statusCode: 401,
       message: 'Upstream Gemini authentication failed. Verify server API key configuration.',
       retryable: false,
+      upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -166,6 +223,8 @@ export function classifyGeminiError(
       statusCode: 403,
       message: 'Upstream Gemini access was denied for the configured credentials or model.',
       retryable: false,
+      upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -180,6 +239,8 @@ export function classifyGeminiError(
       statusCode: 502,
       message: 'Configured Gemini model is unavailable or does not support generation.',
       retryable: false,
+      upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -190,6 +251,7 @@ export function classifyGeminiError(
       message: 'Gemini API rate limit or quota exceeded. Try again later.',
       retryable: true,
       upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -201,6 +263,7 @@ export function classifyGeminiError(
       retryable: true,
       timeoutPhase: 'gemini_sdk',
       upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -211,6 +274,7 @@ export function classifyGeminiError(
       message: 'Gemini service encountered a temporary upstream error.',
       retryable: true,
       upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -225,6 +289,7 @@ export function classifyGeminiError(
       message: 'Gemini API rate limit or quota exceeded. Try again later.',
       retryable: true,
       upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -235,6 +300,7 @@ export function classifyGeminiError(
       message: 'Upstream Gemini rejected the request parameters.',
       retryable: false,
       upstreamStatus: status,
+      upstreamErrorStatus,
     });
   }
 
@@ -244,6 +310,7 @@ export function classifyGeminiError(
     message: 'Failed to complete Gemini generation request.',
     retryable: false,
     upstreamStatus: status,
+    upstreamErrorStatus,
   });
 }
 

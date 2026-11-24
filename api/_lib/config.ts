@@ -12,7 +12,15 @@ export const RECOMMENDED_FRONTEND_TIMEOUT_MS = 27_000;
 export const VERCEL_MAX_DURATION_SEC = 30 as const;
 export const MAX_SAFE_HANDLER_TIMEOUT_MS = 28_000;
 export const MIN_TIMEOUT_MS = 50;
-export const SDK_ATTEMPTS_CONFIGURED = 1 as const;
+/**
+ * Single-layer @google/genai SDK retry policy for transient HTTP 503 capacity spikes.
+ * Total attempts = 3 (1 initial + up to 2 retries), ONLY on HTTP 503,
+ * with short capped backoff bounded by GEMINI_TIMEOUT_MS (18s) and handler deadline (22s).
+ */
+export const SDK_ATTEMPTS_CONFIGURED = 3 as const;
+export const SDK_RETRYABLE_STATUS_CODES = [503] as const;
+export const SDK_RETRY_INITIAL_DELAY_SEC = 0.4;
+export const SDK_RETRY_MAX_DELAY_SEC = 1.0;
 
 export interface AiServerConfig {
   readonly apiKey: string | null;

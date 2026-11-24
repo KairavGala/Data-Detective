@@ -3,8 +3,12 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { BootSequence } from '@/components/cinematic/BootSequence';
 import { AppShell } from '@/components/layout/AppShell';
 import { DatasetProvider } from '@/context/DatasetContext';
+import { DatasetExplorerPage } from '@/features/explorer';
+import { InvestigationCenterPage } from '@/features/investigation';
 import { OverviewPage } from '@/features/overview/OverviewPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { StatisticalAnalysisPage } from '@/features/statistics';
+import { VisualizationStudioPage } from '@/features/visualizations';
 import { ModulePlaceholderPage } from '@/features/workspace/ModulePlaceholderPage';
 
 const BOOT_SESSION_KEY = 'dd_boot_completed';
@@ -78,22 +82,10 @@ export function AppWorkspace({ initialSkipBoot }: AppWorkspaceProps = {}) {
           }
         >
           <Route index element={<OverviewPage />} />
-          <Route
-            path="explorer"
-            element={<ModulePlaceholderPage routeId="explorer" />}
-          />
-          <Route
-            path="analysis"
-            element={<ModulePlaceholderPage routeId="analysis" />}
-          />
-          <Route
-            path="visualizations"
-            element={<ModulePlaceholderPage routeId="visualizations" />}
-          />
-          <Route
-            path="investigation"
-            element={<ModulePlaceholderPage routeId="investigation" />}
-          />
+          <Route path="explorer" element={<DatasetExplorerPage />} />
+          <Route path="analysis" element={<StatisticalAnalysisPage />} />
+          <Route path="visualizations" element={<VisualizationStudioPage />} />
+          <Route path="investigation" element={<InvestigationCenterPage />} />
           <Route
             path="assistant"
             element={<ModulePlaceholderPage routeId="assistant" />}

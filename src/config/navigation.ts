@@ -62,16 +62,16 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     icon: Table2,
     group: 'workspace',
     summary:
-      'Inspect full datasets, inferred column schemas, null patterns, and structural integrity across imported files.',
-    plannedModule: 'Module 03 — Dataset Explorer & Profiling',
+      'Interactive forensic spreadsheet explorer with global and column search, typed numeric and categorical filters, stable sorting, column visibility, and bounded pagination.',
+    plannedModule: 'Active — Module 05 Interactive Data Explorer',
     plannedCapabilities: [
-      'Full virtualized tabular inspection with search, sorting, and filtering',
-      'Automatic column type inference (numeric, categorical, datetime, boolean)',
-      'Missing-value profiling and duplicate record diagnostics',
+      'Sticky-header scrollable grid preserving original cell values and explicit missing-value styling',
+      'Case-insensitive global and column search combined with numeric range and category filters',
+      'Stable ascending/descending typed sorting, column visibility controls, and 25/50/100/250 pagination',
     ],
     prerequisites: [
       'Active CSV or Excel (.xlsx) file imported into workspace',
-      'Profiling & explorer module (Module 03)',
+      'Module 03 schema classifications and missing-value policy',
     ],
   },
   {
@@ -83,16 +83,16 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     icon: Activity,
     group: 'workspace',
     summary:
-      'Run deterministic, React-independent statistical routines to establish quantitative baselines across variables.',
-    plannedModule: 'Module 03 — Statistical Engine',
+      'Deterministic numeric descriptive statistics and categorical frequency distributions computed locally from Module 03 schema classifications.',
+    plannedModule: 'Active — Module 04 Statistical Engine',
     plannedCapabilities: [
-      'Descriptive statistics: mean, median, quartiles, variance, and standard deviation',
-      'Distribution skewness, kurtosis, and percentile breakdowns',
-      'Cross-column correlation matrices and relationship strength scoring',
+      'Numeric descriptive statistics: mean, median, mode, min, max, range, variance, std dev, quartiles, and IQR',
+      'Categorical frequency and percentage distributions with tie-aware most and least frequent categories',
+      'Explicit separation of valid observations from missing and invalid values under Module 03 policy',
     ],
     prerequisites: [
       'Active dataset loaded into workspace',
-      'Statistical computation engine (Module 03)',
+      'Completed Module 03 schema profile',
     ],
   },
   {
@@ -104,16 +104,16 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     icon: BarChart3,
     group: 'workspace',
     summary:
-      'Examine distributions, temporal trends, and bivariate relationships through interactive analytical charts.',
-    plannedModule: 'Module 04 — Interactive Visualizations',
+      'Interactive Visualization Studio converting uploaded datasets into schema-validated bar charts, histograms, ordered line charts, scatter plots, and quartile box plots.',
+    plannedModule: 'Active — Module 06 Visualization Studio',
     plannedCapabilities: [
-      'Histograms, box plots, and category frequency breakdowns',
-      'Time-series trend inspection and multi-variable scatter plots',
-      'Cross-filtering between visual evidence and underlying rows',
+      'Deterministic chart recommendations driven strictly by Module 03 column types and Module 04 statistics',
+      'Bar charts, numeric histograms, ordered/temporal line charts, scatter plots, and exact M04 quartile box plots',
+      'Interactive chart configuration, multi-chart workspace canvas, tooltips, and large-dataset downsampling',
     ],
     prerequisites: [
-      'Active dataset and computed column profiles',
-      'Charting & visual evidence module (Module 04)',
+      'Active dataset imported into workspace',
+      'Completed Module 03 schema profile and Module 04 statistics',
     ],
   },
   {
@@ -125,16 +125,16 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     icon: Crosshair,
     group: 'workspace',
     summary:
-      'Automated forensic detection workspace highlighting statistical outliers, structural breaks, and irregular patterns.',
-    plannedModule: 'Module 05 — Anomaly & Pattern Detection',
+      'Deterministic forensic findings workspace surfacing statistical outliers, data-quality issues, distribution patterns, categorical anomalies, and numeric correlations.',
+    plannedModule: 'Active — Module 07 Insights & Anomaly Detection',
     plannedCapabilities: [
-      'Automated outlier detection using IQR and Z-score thresholds',
-      'Pattern drift, sudden shifts, and unexpected category concentrations',
-      'Evidence-linked findings ranked by investigative severity',
+      'Deterministic IQR and optional Z-score numeric outlier detection with row-level Explorer navigation',
+      'Confirmed data-quality audits for missingness concentrations, invalid values, and zero-variance columns',
+      'Distribution skewness, categorical dominance/rarity, and Pearson correlation findings linked directly to charts',
     ],
     prerequisites: [
-      'Active dataset and statistical baselines',
-      'Anomaly & pattern detection engine (Module 05)',
+      'Active dataset imported into workspace',
+      'Completed Module 03 schema profile and Module 04 statistical baselines',
     ],
   },
   {

@@ -40,3 +40,41 @@ export function formatCellValue(value: unknown): string {
   }
   return String(value);
 }
+
+/**
+ * Formats a statistical numeric measurement cleanly for tabular display.
+ * Handles null/non-finite values safely and avoids unreadable floating-point noise.
+ */
+export function formatStatNumber(
+  value: number | null | undefined,
+  maxFractionDigits = 4,
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '—';
+  }
+  const normalized = Object.is(value, -0) ? 0 : value;
+  const abs = Math.abs(normalized);
+
+  if (abs !== 0 && (abs >= 1e9 || abs < 1e-4)) {
+    return normalized.toExponential(3);
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: maxFractionDigits,
+  }).format(normalized);
+}
+
+/**
+ * Formats a percentage value (0–100) with fixed precision for consistent tabular columns.
+ */
+export function formatPercentage(
+  value: number | null | undefined,
+  fractionDigits = 2,
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '—';
+  }
+  const normalized = Object.is(value, -0) ? 0 : value;
+  return `${normalized.toFixed(fractionDigits)}%`;
+}
+

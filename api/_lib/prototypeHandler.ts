@@ -194,6 +194,12 @@ export function createPrototypeHandler(
         model: config.model,
         statusCode: normalizedError.statusCode,
         errorCode: normalizedError.code,
+        ...(normalizedError.upstreamStatus !== undefined
+          ? { upstreamStatus: normalizedError.upstreamStatus }
+          : {}),
+        ...(normalizedError.upstreamErrorStatus
+          ? { upstreamErrorStatus: normalizedError.upstreamErrorStatus }
+          : {}),
         durationMs,
         sdkAttemptsConfigured: SDK_ATTEMPTS_CONFIGURED,
       });

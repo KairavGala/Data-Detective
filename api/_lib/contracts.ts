@@ -39,7 +39,7 @@ export type ApiErrorCode =
 export interface PrototypeResponseMeta {
   readonly model: string;
   readonly durationMs: number;
-  readonly sdkAttemptsConfigured: 1;
+  readonly sdkAttemptsConfigured: number;
   readonly timeoutPhase?: 'gemini_sdk' | 'backend_deadline';
   readonly upstreamStatus?: number;
 }
@@ -69,7 +69,7 @@ export interface HealthResponse {
   readonly configured: boolean;
   readonly prototypeEnabled: boolean;
   readonly model: string;
-  readonly sdkAttemptsConfigured: 1;
+  readonly sdkAttemptsConfigured: number;
   readonly timeouts: {
     readonly geminiTimeoutMs: number;
     readonly handlerTimeoutMs: number;

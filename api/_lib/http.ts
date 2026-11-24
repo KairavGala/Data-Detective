@@ -285,6 +285,8 @@ export function logSafeTelemetry(entry: {
   readonly model?: string;
   readonly statusCode: number;
   readonly errorCode?: string;
+  readonly upstreamStatus?: number;
+  readonly upstreamErrorStatus?: string;
   readonly durationMs: number;
   readonly sdkAttemptsConfigured?: number;
 }): void {

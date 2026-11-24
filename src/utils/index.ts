@@ -3,5 +3,7 @@ export {
   formatBytes,
   formatCellValue,
   formatCount,
+  formatPercentage,
+  formatStatNumber,
   formatTimestamp,
 } from './format';

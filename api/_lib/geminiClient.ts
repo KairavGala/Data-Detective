@@ -2,11 +2,14 @@
  * Data Detective — Official @google/genai Server Client Wrapper
  *
  * Verified retry behavior against `@google/genai@2.32.0`:
- * - By default, `HttpRetryOptions.attempts` defaults to 5 when `retryOptions`
- *   is supplied without `attempts`.
- * - Setting `httpOptions.retryOptions = { attempts: 1 }` forces `p-retry` to
- *   run with `retries = attempts - 1 = 0`, guaranteeing strictly 1 HTTP attempt
- *   and zero SDK-level retries in Stage 1.
+ * - Uses strictly ONE retry layer inside the official SDK (`httpOptions.retryOptions`),
+ *   with zero application-level retry loops.
+ * - Retries ONLY transient HTTP `503` (Service Unavailable) up to
+ *   `SDK_ATTEMPTS_CONFIGURED` total attempts (1 initial + up to 2 retries) with
+ *   short capped jittered backoff (`0.4s` initial, `1.0s` max).
+ * - Never retries `400`, `401`, `403`, `404`, `429`, or `504`.
+ * - Total elapsed time across all attempts remains hard-bounded by `combinedSignal`
+ *   (`GEMINI_TIMEOUT_MS` 18s and `API_HANDLER_TIMEOUT_MS` 22s).
  *
  * Note on cancellation:
  * - Aborting `AbortSignal` stops this server function from waiting on the HTTP
@@ -15,7 +18,12 @@
  */
 
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
-import { SDK_ATTEMPTS_CONFIGURED } from './config.js';
+import {
+  SDK_ATTEMPTS_CONFIGURED,
+  SDK_RETRY_INITIAL_DELAY_SEC,
+  SDK_RETRY_MAX_DELAY_SEC,
+  SDK_RETRYABLE_STATUS_CODES,
+} from './config.js';
 import type {
   PrototypeRequestPayload,
   PrototypeStructuredOutput,
@@ -122,6 +130,11 @@ export async function runPrototypeGeneration(
         timeout: options.geminiTimeoutMs,
         retryOptions: {
           attempts: SDK_ATTEMPTS_CONFIGURED,
+          httpStatusCodes: [...SDK_RETRYABLE_STATUS_CODES],
+          initialDelay: SDK_RETRY_INITIAL_DELAY_SEC,
+          maxDelay: SDK_RETRY_MAX_DELAY_SEC,
+          expBase: 2,
+          jitter: 1,
         },
         ...(options.customFetch ? { fetch: options.customFetch } : {}),
       },
