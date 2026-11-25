@@ -23,6 +23,7 @@ export interface PrototypeStructuredOutput {
 export type ApiErrorCode =
   | 'CONFIG_MISSING'
   | 'PROTOTYPE_DISABLED'
+  | 'INVESTIGATION_DISABLED'
   | 'METHOD_NOT_ALLOWED'
   | 'PAYLOAD_TOO_LARGE'
   | 'VALIDATION_ERROR'
@@ -68,6 +69,7 @@ export interface HealthResponse {
   readonly requestId: string;
   readonly configured: boolean;
   readonly prototypeEnabled: boolean;
+  readonly investigationEnabled: boolean;
   readonly model: string;
   readonly sdkAttemptsConfigured: number;
   readonly timeouts: {

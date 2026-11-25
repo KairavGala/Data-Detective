@@ -13,6 +13,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import healthHandler from './api/ai/health.js';
+import investigateHandler from './api/ai/investigate.js';
 import prototypeHandler from './api/ai/prototype.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,9 @@ async function startServer(): Promise<void> {
   });
   app.all('/api/ai/prototype', (req, res, next) => {
     void prototypeHandler(req, res).catch(next);
+  });
+  app.all('/api/ai/investigate', (req, res, next) => {
+    void investigateHandler(req, res).catch(next);
   });
 
   if (process.env.NODE_ENV !== 'production') {

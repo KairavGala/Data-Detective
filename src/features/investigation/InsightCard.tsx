@@ -4,10 +4,12 @@ import {
   BarChart3,
   ChevronDown,
   ChevronUp,
+  FileText,
+  FolderPlus,
   Table2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { DatasetInsight } from '@/types';
+import type { DatasetInsight, InvestigationCaseStatus } from '@/types';
 import { cn, formatCount } from '@/utils';
 import {
   buildExplorerColumnUrl,
@@ -19,17 +21,44 @@ import {
   SEVERITY_META,
 } from './investigationLabels';
 
+export interface LinkedCaseRef {
+  readonly id: string;
+  readonly title: string;
+  readonly status: InvestigationCaseStatus;
+}
+
 interface InsightCardProps {
   readonly insight: DatasetInsight;
+  readonly initiallyExpanded?: boolean;
+  readonly isHighlighted?: boolean;
+  readonly isSelected?: boolean;
+  readonly onToggleSelect?: (findingId: string) => void;
+  readonly linkedCases?: readonly LinkedCaseRef[];
+  readonly availableCases?: readonly { readonly id: string; readonly title: string }[];
+  readonly onCreateCaseFromFinding?: (finding: DatasetInsight) => void;
+  readonly onAttachToCase?: (caseId: string, finding: DatasetInsight) => void;
+  readonly onOpenCase?: (caseId: string) => void;
 }
 
 /**
  * Single-elevation forensic finding card displaying classification distinction,
  * severity, evidence strength, affected-column Explorer jumps, associated chart
- * navigation, and an expandable evidence & record-anomaly drawer.
+ * navigation, Module 09 case assignment controls, and an expandable evidence &
+ * record-anomaly drawer.
  */
-export function InsightCard({ insight }: InsightCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function InsightCard({
+  insight,
+  initiallyExpanded = false,
+  isHighlighted = false,
+  isSelected = false,
+  onToggleSelect,
+  linkedCases = [],
+  availableCases = [],
+  onCreateCaseFromFinding,
+  onAttachToCase,
+  onOpenCase,
+}: InsightCardProps) {
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
 
   const sevMeta = SEVERITY_META[insight.severity];
   const clsMeta = CLASSIFICATION_META[insight.classification];
@@ -38,16 +67,33 @@ export function InsightCard({ insight }: InsightCardProps) {
   const hasRecordSamples =
     insight.recordAnomalies !== undefined && insight.recordAnomalies.length > 0;
 
+  const linkedCaseIds = new Set(linkedCases.map((c) => c.id));
+  const attachableCases = availableCases.filter((c) => !linkedCaseIds.has(c.id));
+
   return (
     <article
       data-testid={`insight-card-${insight.id}`}
       data-insight-severity={insight.severity}
       data-insight-classification={insight.classification}
-      className="dd-surface-primary space-y-3.5 p-5"
+      data-insight-highlighted={isHighlighted ? 'true' : undefined}
+      className={cn(
+        'dd-surface-primary space-y-3.5 p-5',
+        isHighlighted &&
+          'border-[var(--dd-accent-teal-border)] ring-1 ring-[var(--dd-accent-teal-border)]',
+      )}
     >
       {/* Top unboxed metadata row */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--dd-border-subtle)] pb-3">
         <div className="flex flex-wrap items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.08em]">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              aria-label={`Select finding ${insight.title}`}
+              checked={isSelected}
+              onChange={() => onToggleSelect(insight.id)}
+              className="h-3.5 w-3.5 cursor-pointer accent-[var(--dd-accent-teal)]"
+            />
+          )}
           <span
             className={cn('font-semibold', clsMeta.textClass)}
             title={clsMeta.fullLabel}
@@ -66,6 +112,16 @@ export function InsightCard({ insight }: InsightCardProps) {
           <span className="text-[var(--dd-text-muted)]">
             {CONFIDENCE_LABELS[insight.confidence]}
           </span>
+          {linkedCases.length > 0 && (
+            <>
+              <span className="text-[var(--dd-text-muted)]" aria-hidden="true">
+                ·
+              </span>
+              <span className="text-[var(--dd-status-verified)]">
+                In {linkedCases.map((c) => c.id).join(', ')}
+              </span>
+            </>
+          )}
         </div>
 
         <button
@@ -116,7 +172,7 @@ export function InsightCard({ insight }: InsightCardProps) {
         {insight.suggestedAction}
       </div>
 
-      {/* Cross-Module Navigation Actions (Affected Columns & Associated Chart) */}
+      {/* Cross-Module Navigation & Case Workflow Actions */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <div className="flex flex-wrap items-center gap-2">
           {insight.affectedColumnIds.map((colId, idx) => {
@@ -133,18 +189,77 @@ export function InsightCard({ insight }: InsightCardProps) {
               </Link>
             );
           })}
+
+          {insight.recommendedChart && (
+            <Link
+              to={buildVisualizationUrl(insight.recommendedChart)}
+              className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] transition-colors hover:bg-[var(--dd-accent-teal)]/20 whitespace-nowrap"
+            >
+              <BarChart3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                Open {getChartActionLabel(insight.recommendedChart.chartType)}
+              </span>
+            </Link>
+          )}
         </div>
 
-        {insight.recommendedChart && (
-          <Link
-            to={buildVisualizationUrl(insight.recommendedChart)}
-            className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] transition-colors hover:bg-[var(--dd-accent-teal)]/20 whitespace-nowrap"
-          >
-            <BarChart3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>
-              Open {getChartActionLabel(insight.recommendedChart.chartType)}
-            </span>
-          </Link>
+        {/* Module 09 Case Actions */}
+        {(onCreateCaseFromFinding || onOpenCase) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {linkedCases.length > 0 && onOpenCase ? (
+              linkedCases.map((linked) => (
+                <button
+                  key={linked.id}
+                  type="button"
+                  onClick={() => onOpenCase(linked.id)}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-[var(--dd-radius-sm)] border border-[var(--dd-status-verified)]/40 bg-[var(--dd-surface-recessed)] px-2.5 py-1 font-mono text-[0.75rem] text-[var(--dd-status-verified)] hover:border-[var(--dd-accent-teal-border)] whitespace-nowrap"
+                >
+                  <span>Open {linked.id}</span>
+                  <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                </button>
+              ))
+            ) : (
+              onCreateCaseFromFinding && (
+                <button
+                  type="button"
+                  data-testid={`create-case-from-${insight.id}`}
+                  onClick={() => onCreateCaseFromFinding(insight)}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-2.5 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] transition-colors hover:border-[var(--dd-accent-teal-border)] hover:text-[var(--dd-accent-teal)] whitespace-nowrap"
+                >
+                  <FolderPlus className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span>Create Case</span>
+                </button>
+              )
+            )}
+
+            {attachableCases.length > 0 && onAttachToCase && (
+              <select
+                aria-label={`Attach ${insight.title} to existing case`}
+                defaultValue=""
+                onChange={(e) => {
+                  const targetCaseId = e.target.value;
+                  if (!targetCaseId) return;
+                  onAttachToCase(targetCaseId, insight);
+                  e.target.value = '';
+                }}
+                className="rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-2 py-1 font-mono text-[0.75rem] text-[var(--dd-text-secondary)] outline-none focus:border-[var(--dd-accent-teal-border)]"
+              >
+                <option value="">Attach to Case…</option>
+                {attachableCases.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id}: {c.title.slice(0, 36)}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link
+              to={`/reports?source=findings&finding=${encodeURIComponent(insight.id)}`}
+              className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-2.5 py-1 font-mono text-[0.75rem] text-[var(--dd-text-secondary)] hover:border-[var(--dd-accent-teal-border)] hover:text-[var(--dd-text-primary)] whitespace-nowrap"
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Include in Report</span>
+            </Link>
+          </div>
         )}
       </div>
 

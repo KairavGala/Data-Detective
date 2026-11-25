@@ -293,7 +293,7 @@ function prepareBarChart(
       type: 'bar',
       status: 'invalid_config',
       emptyReason:
-        'Bar charts require a column classified as categorical by Module 03.',
+        'Bar charts require a column classified as categorical during schema profiling.',
       xColumnName: colProfile?.name ?? 'Unknown',
       totalRows: profile.rowCount,
       validCount: 0,
@@ -386,7 +386,7 @@ function prepareHistogramChart(
       type: 'histogram',
       status: 'invalid_config',
       emptyReason:
-        'Histograms require a column classified as numeric by Module 03.',
+        'Histograms require a column classified as numeric during schema profiling.',
       xColumnName: colProfile?.name ?? 'Unknown',
       totalRows: dataset.rowCount,
       validCount: 0,
@@ -770,7 +770,7 @@ function prepareScatterChart(
       type: 'scatter',
       status: 'invalid_config',
       emptyReason:
-        'Scatter plots require two distinct columns classified as numeric by Module 03.',
+        'Scatter plots require two distinct columns classified as numeric during schema profiling.',
       xColumnName: xProfile?.name ?? 'Unknown',
       yColumnName: yProfile?.name ?? 'Unknown',
       totalRows: dataset.rowCount,
@@ -923,7 +923,7 @@ function prepareBoxPlotChart(
       type: 'boxplot',
       status: 'invalid_config',
       emptyReason:
-        'Box plots require a column classified as numeric by Module 03.',
+        'Box plots require a column classified as numeric during schema profiling.',
       xColumnName: colProfile?.name ?? 'Unknown',
       totalRows: profile.rowCount,
       validCount: 0,

@@ -231,7 +231,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
       {/* Bottom hint */}
       <div className="relative mx-auto flex w-full max-w-3xl items-center justify-between border-t border-[var(--dd-border-subtle)] pt-4 font-mono text-[0.7rem] text-[var(--dd-text-muted)]">
         <span>Press Esc to skip initialization</span>
-        <span className="dd-tabular">Module 01 · Application Shell</span>
+        <span className="dd-tabular">Forensic Analytical Workstation</span>
       </div>
     </div>
   );

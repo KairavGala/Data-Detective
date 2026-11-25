@@ -710,6 +710,510 @@ export interface DatasetInvestigationSummary {
   readonly overview: DatasetInvestigationOverview;
 }
 
+/* ── Module 08: AI Investigation & Intelligence ─────────────────────────── */
 
+export type AiAnswerSupportType =
+  | 'directly_supported'
+  | 'reasonable_interpretation'
+  | 'insufficient_evidence';
 
+export type AiRecommendationPriority = 'high' | 'medium' | 'low';
 
+export type AiDestinationType = 'explorer' | 'visualizations' | 'investigation';
+
+export interface InvestigationContextCategorySummary {
+  readonly value: string;
+  readonly count: number;
+  readonly percentage: number;
+}
+
+export interface InvestigationContextNumericSummary {
+  readonly validCount: number;
+  readonly mean: number | null;
+  readonly median: number | null;
+  readonly min: number | null;
+  readonly max: number | null;
+  readonly range: number | null;
+  readonly sampleStdDev: number | null;
+  readonly q1: number | null;
+  readonly q3: number | null;
+  readonly iqr: number | null;
+  readonly modeStatus: NumericModeStatus;
+}
+
+export interface InvestigationContextCategoricalSummary {
+  readonly validCount: number;
+  readonly distinctCount: number;
+  readonly isUniform: boolean;
+  readonly topCategories: readonly InvestigationContextCategorySummary[];
+}
+
+export interface InvestigationContextColumn {
+  readonly columnId: string;
+  readonly name: string;
+  readonly detectedType: ProfileColumnType;
+  readonly confidence: TypeConfidence;
+  readonly missingPercentage: number;
+  readonly invalidCount: number;
+  readonly uniqueCount: number;
+  readonly distinctRatio: number;
+  readonly numericSummary?: InvestigationContextNumericSummary;
+  readonly categoricalSummary?: InvestigationContextCategoricalSummary;
+}
+
+export interface InvestigationContextFinding {
+  readonly id: string;
+  readonly category: InsightCategory;
+  readonly classification: InsightClassification;
+  readonly severity: InsightSeverity;
+  readonly confidence: EvidenceStrength;
+  readonly title: string;
+  readonly explanation: string;
+  readonly affectedColumnIds: readonly string[];
+  readonly evidence: readonly InsightEvidenceMetric[];
+  readonly totalAnomalyCount?: number;
+  readonly recommendedChartType?: ChartType;
+}
+
+export interface InvestigationContextRelationship {
+  readonly findingId: string;
+  readonly columnIds: readonly [string, string];
+  readonly columnNames: readonly [string, string];
+  readonly metricSummary: string;
+}
+
+export interface InvestigationContextChartAvailability {
+  readonly chartType: ChartType;
+  readonly xColumnId: string;
+  readonly yColumnId?: string;
+  readonly title: string;
+}
+
+export interface InvestigationContextMeta {
+  readonly truncated: boolean;
+  readonly reductionNotes: readonly string[];
+  readonly includedColumnCount: number;
+  readonly totalColumnCount: number;
+  readonly includedFindingCount: number;
+  readonly totalFindingCount: number;
+  readonly serializedCharCount: number;
+}
+
+/**
+ * Privacy-safe, aggregate-only context payload transmitted to `/api/ai/investigate`.
+ * Strictly excludes raw spreadsheet rows, full CSV/XLSX contents, sample cell
+ * values from free-text/identifier columns, and record-level anomaly samples.
+ */
+export interface InvestigationContextPayload {
+  readonly dataset: {
+    readonly fileName: string;
+    readonly rowCount: number;
+    readonly columnCount: number;
+    readonly totalCells: number;
+    readonly overallMissingPercentage: number;
+    readonly qualityScore: number;
+    readonly qualityGrade: QualityGrade;
+    readonly qualityDimensions: readonly {
+      readonly label: string;
+      readonly score: number;
+    }[];
+    readonly missingPolicySummary: string;
+    readonly typeDistribution: Readonly<Record<ProfileColumnType, number>>;
+  };
+  readonly columns: readonly InvestigationContextColumn[];
+  readonly findings: readonly InvestigationContextFinding[];
+  readonly numericRelationships: readonly InvestigationContextRelationship[];
+  readonly availableCharts: readonly InvestigationContextChartAvailability[];
+  readonly contextMeta: InvestigationContextMeta;
+}
+
+export interface AiMajorFindingInterpretation {
+  readonly title: string;
+  readonly interpretation: string;
+  readonly whyItMatters: string;
+  readonly supportingFindingIds: readonly string[];
+  readonly relevantColumnIds: readonly string[];
+}
+
+export interface AiInvestigationBrief {
+  readonly executiveSummary: string;
+  readonly majorFindings: readonly AiMajorFindingInterpretation[];
+  readonly dataQualityAssessment: string;
+  readonly relationshipsAndPatterns: string;
+  readonly potentialRisks: readonly string[];
+  readonly recommendedNextSteps: readonly string[];
+  readonly confidenceAndLimitations: string;
+}
+
+export interface AiCrossFindingConnection {
+  readonly id: string;
+  readonly title: string;
+  readonly findingIds: readonly string[];
+  readonly columnIds: readonly string[];
+  readonly evidenceSummary: string;
+  readonly possibleInterpretation: string;
+  readonly alternativeExplanations: readonly string[];
+  readonly confidence: EvidenceStrength;
+  readonly suggestedInvestigation: string;
+}
+
+export interface AiRecommendedInvestigation {
+  readonly id: string;
+  readonly title: string;
+  readonly reason: string;
+  readonly supportingFindingIds: readonly string[];
+  readonly relevantColumnIds: readonly string[];
+  readonly priority: AiRecommendationPriority;
+  readonly destinationType: AiDestinationType;
+  readonly destinationUrl: string;
+  readonly whatToLookFor: string;
+}
+
+export interface AiBriefGenerationData {
+  readonly brief: AiInvestigationBrief;
+  readonly connections: readonly AiCrossFindingConnection[];
+  readonly recommendations: readonly AiRecommendedInvestigation[];
+}
+
+export interface AiDatasetQuestionHistoryItem {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+}
+
+export interface AiDatasetAnswerData {
+  readonly answer: string;
+  readonly supportType: AiAnswerSupportType;
+  readonly referencedFindingIds: readonly string[];
+  readonly referencedColumnIds: readonly string[];
+  readonly caveats: readonly string[];
+  readonly suggestedFollowUps: readonly string[];
+}
+
+export interface AiInvestigationResponseMeta {
+  readonly model: string;
+  readonly durationMs: number;
+  readonly sdkAttemptsConfigured: number;
+  readonly generatedAt: string;
+  readonly contextCharCount?: number;
+  readonly strippedInvalidFindingRefs?: number;
+  readonly strippedInvalidColumnRefs?: number;
+  readonly timeoutPhase?: 'gemini_sdk' | 'backend_deadline';
+  readonly upstreamStatus?: number;
+}
+
+export interface AiConversationTurn {
+  readonly id: string;
+  readonly question: string;
+  readonly askedAt: number;
+  readonly status: 'pending' | 'answered' | 'error';
+  readonly answer?: AiDatasetAnswerData;
+  readonly meta?: AiInvestigationResponseMeta;
+  readonly errorMessage?: string;
+  readonly errorCode?: string;
+  readonly retryable?: boolean;
+}
+
+export interface AiHealthStatus {
+  readonly ok: boolean;
+  readonly configured: boolean;
+  readonly investigationEnabled: boolean;
+  readonly prototypeEnabled: boolean;
+  readonly model: string;
+  readonly sdkAttemptsConfigured: number;
+  readonly timeouts: {
+    readonly geminiTimeoutMs: number;
+    readonly handlerTimeoutMs: number;
+    readonly frontendRecommendedTimeoutMs: number;
+    readonly vercelMaxDurationSec: number;
+  };
+}
+
+/* ── Module 09: Integrated Investigation Center ─────────────────────────── */
+
+export type InvestigationCaseStatus =
+  | 'open'
+  | 'in_progress'
+  | 'under_review'
+  | 'resolved';
+
+export type InvestigationCasePriority = 'critical' | 'high' | 'medium' | 'low';
+
+export type CaseEvidenceType =
+  | 'finding'
+  | 'column'
+  | 'statistic'
+  | 'visualization'
+  | 'related_finding';
+
+export interface CaseEvidenceItem {
+  readonly id: string;
+  readonly type: CaseEvidenceType;
+  readonly title: string;
+  readonly sourceRef: string;
+  readonly description: string;
+  readonly addedAt: number;
+  readonly destinationUrl: string;
+  readonly findingId?: string;
+  readonly columnIds?: readonly string[];
+  readonly chartLink?: InsightChartLink;
+}
+
+export type CaseNoteType =
+  | 'observation'
+  | 'hypothesis'
+  | 'question'
+  | 'conclusion';
+
+export interface CaseNote {
+  readonly id: string;
+  readonly type: CaseNoteType;
+  readonly text: string;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  readonly supportingEvidenceIds: readonly string[];
+}
+
+export type CaseTimelineEventType =
+  | 'case_created'
+  | 'case_updated'
+  | 'finding_attached'
+  | 'finding_detached'
+  | 'evidence_added'
+  | 'evidence_removed'
+  | 'note_created'
+  | 'note_edited'
+  | 'note_deleted'
+  | 'ai_analysis_generated'
+  | 'priority_changed'
+  | 'status_changed'
+  | 'case_resolved'
+  | 'case_archived'
+  | 'case_reopened'
+  | 'conclusion_updated';
+
+export interface CaseTimelineEvent {
+  readonly id: string;
+  readonly type: CaseTimelineEventType;
+  readonly label: string;
+  readonly detail?: string;
+  readonly timestamp: number;
+}
+
+export interface CaseAiEvidenceSummary {
+  readonly type: CaseEvidenceType;
+  readonly title: string;
+  readonly sourceRef: string;
+}
+
+export interface CaseAiRequestInfo {
+  readonly caseTitle: string;
+  readonly caseDescription: string;
+  readonly selectedFindingIds: readonly string[];
+  readonly evidenceItems: readonly CaseAiEvidenceSummary[];
+  readonly userQuestion?: string;
+  readonly priorBriefSummary?: string;
+}
+
+export interface AiCaseAnalysisData {
+  readonly evidenceAssessment: string;
+  readonly possibleConnections: readonly string[];
+  readonly alternativeExplanations: readonly string[];
+  readonly additionalEvidenceToExamine: readonly string[];
+  readonly supportedConclusions: readonly string[];
+  readonly unansweredQuestions: readonly string[];
+  readonly supportType: AiAnswerSupportType;
+  readonly referencedFindingIds: readonly string[];
+  readonly referencedColumnIds: readonly string[];
+  readonly caveats: readonly string[];
+}
+
+export interface CaseAiAnalysisRecord {
+  readonly id: string;
+  readonly generatedAt: string;
+  readonly question: string;
+  readonly model: string;
+  readonly durationMs: number;
+  readonly contextCharCount?: number;
+  readonly data: AiCaseAnalysisData;
+}
+
+export interface InvestigationCase {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly datasetId: string;
+  readonly datasetFileName: string;
+  readonly datasetProfiledAt: number;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  readonly status: InvestigationCaseStatus;
+  readonly priority: InvestigationCasePriority;
+  readonly archived: boolean;
+  readonly archivedAt?: number;
+  readonly findingIds: readonly string[];
+  readonly evidence: readonly CaseEvidenceItem[];
+  readonly notes: readonly CaseNote[];
+  readonly conclusion: string;
+  readonly aiAnalyses: readonly CaseAiAnalysisRecord[];
+  readonly timeline: readonly CaseTimelineEvent[];
+}
+
+/* ── Module 10: Investigation Reports & Dossiers ───────────────────────── */
+
+export type ReportType =
+  | 'dataset_analysis'
+  | 'data_quality'
+  | 'investigation_dossier'
+  | 'statistical_analysis'
+  | 'custom';
+
+export type ReportSourceKind = 'dataset' | 'case' | 'findings';
+
+export type ReportSectionKey =
+  | 'cover'
+  | 'executive_summary'
+  | 'dataset_overview'
+  | 'methodology'
+  | 'statistical_findings'
+  | 'insights_anomalies'
+  | 'visualizations'
+  | 'investigation_case'
+  | 'ai_interpretation'
+  | 'limitations_conclusion';
+
+export interface ReportSectionConfig {
+  readonly key: ReportSectionKey;
+  readonly title: string;
+  readonly enabled: boolean;
+  readonly customNote?: string;
+}
+
+export interface ReportAiInclusion {
+  readonly includeModule08Brief: boolean;
+  readonly includeModule09CaseAnalyses: boolean;
+}
+
+export interface ReportDatasetOverviewSnapshot {
+  readonly fileName: string;
+  readonly fileType: string;
+  readonly fileSizeBytes: number;
+  readonly rowCount: number;
+  readonly columnCount: number;
+  readonly totalCells: number;
+  readonly totalMissingCount: number;
+  readonly overallMissingPercentage: number;
+  readonly qualityScore: number;
+  readonly qualityGrade: string;
+  readonly qualitySummary: string;
+  readonly typeDistribution: Readonly<Record<ProfileColumnType, number>>;
+  readonly warningCount: number;
+  readonly missingValuePolicyNote: string;
+  readonly columns: readonly {
+    readonly columnId: string;
+    readonly name: string;
+    readonly detectedType: ProfileColumnType;
+    readonly confidence: string;
+    readonly missingCount: number;
+    readonly missingPercentage: number;
+    readonly uniqueCount: number;
+  }[];
+}
+
+export interface ReportFindingSnapshot {
+  readonly id: string;
+  readonly title: string;
+  readonly category: InsightCategory;
+  readonly severity: InsightSeverity;
+  readonly classification: InsightClassification;
+  readonly affectedColumnIds: readonly string[];
+  readonly affectedColumnNames: readonly string[];
+  readonly evidenceMetrics: readonly InsightEvidenceMetric[];
+  readonly explanation: string;
+}
+
+export interface ReportChartSnapshot {
+  readonly config: ChartConfig;
+  readonly prepared: PreparedChartData;
+  readonly caption: string;
+}
+
+export interface ReportModule08BriefSnapshot {
+  readonly datasetId: string;
+  readonly profiledAt: number;
+  readonly generatedAt: string;
+  readonly model: string;
+  readonly data: AiBriefGenerationData;
+}
+
+export interface ReportSourceSnapshot {
+  readonly datasetOverview: ReportDatasetOverviewSnapshot;
+  readonly numericStats: readonly NumericColumnStatistics[];
+  readonly categoricalStats: readonly CategoricalColumnStatistics[];
+  readonly findings: readonly ReportFindingSnapshot[];
+  readonly charts: readonly ReportChartSnapshot[];
+  readonly caseSnapshot?: InvestigationCase;
+  readonly module08Brief?: ReportModule08BriefSnapshot;
+}
+
+export interface InvestigationReport {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly author: string;
+  readonly introDescription: string;
+  readonly reportType: ReportType;
+  readonly sourceKind: ReportSourceKind;
+  readonly datasetId: string;
+  readonly datasetFileName: string;
+  readonly datasetProfiledAt: number;
+  readonly caseId?: string;
+  readonly caseTitle?: string;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  readonly sections: readonly ReportSectionConfig[];
+  readonly selectedFindingIds: readonly string[];
+  readonly selectedStatColumnIds: readonly string[];
+  readonly selectedCharts: readonly ChartConfig[];
+  readonly aiInclusion: ReportAiInclusion;
+  readonly customLimitations?: string;
+  readonly customConclusion?: string;
+  readonly snapshot: ReportSourceSnapshot;
+}
+
+export interface ReportMethodologyItem {
+  readonly id: string;
+  readonly name: string;
+  readonly scope: string;
+  readonly description: string;
+}
+
+export interface CompiledReportDocument {
+  readonly report: InvestigationReport;
+  readonly isActiveDatasetMatch: boolean;
+  readonly generatedAt: number;
+  readonly activeSections: readonly ReportSectionConfig[];
+  readonly executiveSummary: {
+    readonly deterministicSummary: string;
+    readonly aiBriefSummary?: string;
+    readonly aiBriefModel?: string;
+    readonly aiBriefGeneratedAt?: string;
+    readonly keyHighlights: readonly string[];
+  };
+  readonly datasetOverview: ReportDatasetOverviewSnapshot;
+  readonly methodology: readonly ReportMethodologyItem[];
+  readonly numericStats: readonly NumericColumnStatistics[];
+  readonly categoricalStats: readonly CategoricalColumnStatistics[];
+  readonly findings: readonly ReportFindingSnapshot[];
+  readonly charts: readonly ReportChartSnapshot[];
+  readonly investigationCase?: InvestigationCase;
+  readonly aiInterpretations: {
+    readonly module08Brief?: ReportModule08BriefSnapshot;
+    readonly module09CaseAnalyses: readonly CaseAiAnalysisRecord[];
+  };
+  readonly limitations: {
+    readonly dataLimitations: readonly string[];
+    readonly analyticalLimitations: readonly string[];
+    readonly unansweredQuestions: readonly string[];
+    readonly supportedConclusions: readonly string[];
+  };
+}

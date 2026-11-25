@@ -200,7 +200,6 @@ function AppShellInner({
         <Topbar
           currentRoute={currentRoute}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
-          onReplayBoot={onReplayBoot}
         />
 
         <main

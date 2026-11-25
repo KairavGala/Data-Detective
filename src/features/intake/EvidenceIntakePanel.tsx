@@ -41,6 +41,8 @@ interface EvidenceIntakePanelProps {
   readonly limits?: IntakeLimits;
   /** Optional callback triggered after a dataset is registered */
   readonly onImportComplete?: () => void;
+  /** Optional callback to dismiss intake without affecting the active dataset */
+  readonly onCancel?: () => void;
 }
 
 interface ProgressState {
@@ -78,6 +80,7 @@ function describeDelimiter(delimiter?: string): string {
 export function EvidenceIntakePanel({
   limits = DEFAULT_LIMITS,
   onImportComplete,
+  onCancel,
 }: EvidenceIntakePanelProps) {
   const { activeDataset, registerDataset } = useDataset();
   const prefersReducedMotion = useReducedMotion();
@@ -140,6 +143,11 @@ export function EvidenceIntakePanel({
       fileInputRef.current.value = '';
     }
   }, []);
+
+  const handleDismissIntake = useCallback(() => {
+    resetIntake();
+    onCancel?.();
+  }, [onCancel, resetIntake]);
 
   const handleCancelProcessing = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -378,11 +386,29 @@ export function EvidenceIntakePanel({
         >
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <DossierLabel code="INTAKE BAY" label="Local File Registration" />
-              <StatusIndicator
-                tone={isDragging ? 'verified' : 'analytical'}
-                label={isDragging ? 'Release to Scan' : 'Ready for Upload'}
+              <DossierLabel
+                code={onCancel ? 'REPLACE DATASET' : 'INTAKE BAY'}
+                label={
+                  onCancel && activeDataset
+                    ? `Current: ${activeDataset.fileName}`
+                    : 'Local File Registration'
+                }
               />
+              <div className="flex items-center gap-2.5">
+                {isDragging && (
+                  <StatusIndicator tone="verified" label="Release to Scan" />
+                )}
+                {onCancel && (
+                  <button
+                    type="button"
+                    onClick={handleDismissIntake}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3 py-1.5 text-[0.75rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-border-strong)] hover:text-[var(--dd-text-primary)] whitespace-nowrap"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Cancel</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-start gap-3.5 pt-1">
@@ -394,12 +420,14 @@ export function EvidenceIntakePanel({
               </div>
               <div className="space-y-1">
                 <h3 className="text-[0.9375rem] font-medium text-[var(--dd-text-primary)]">
-                  Drop a CSV or Excel (.xlsx) file here
+                  {onCancel
+                    ? 'Drop a replacement CSV or Excel (.xlsx) file here'
+                    : 'Drop a CSV or Excel (.xlsx) file here'}
                 </h3>
                 <p className="text-[0.8125rem] leading-relaxed text-[var(--dd-text-secondary)]">
-                  Files are parsed and validated locally inside your browser.
-                  Inspect headers, warnings, and records before registering the
-                  dataset.
+                  {onCancel
+                    ? 'Your active dataset stays loaded until you confirm a replacement. Dismiss this panel at any time to keep working with the current file.'
+                    : 'Files are parsed and validated locally inside your browser. Inspect headers, warnings, and records before registering the dataset.'}
                 </p>
               </div>
             </div>
@@ -532,7 +560,7 @@ export function EvidenceIntakePanel({
             </div>
             <button
               type="button"
-              onClick={resetIntake}
+              onClick={onCancel ? handleDismissIntake : resetIntake}
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3 py-1.5 text-[0.75rem] text-[var(--dd-text-secondary)] hover:text-[var(--dd-text-primary)] self-start sm:self-auto"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -783,10 +811,10 @@ export function EvidenceIntakePanel({
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
-                onClick={resetIntake}
+                onClick={onCancel ? handleDismissIntake : resetIntake}
                 className="cursor-pointer rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-border-strong)] hover:text-[var(--dd-text-primary)]"
               >
-                Discard
+                {onCancel ? 'Cancel' : 'Discard'}
               </button>
               <button
                 type="button"
@@ -888,6 +916,16 @@ export function EvidenceIntakePanel({
                 className="cursor-pointer rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-elevated)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] hover:text-[var(--dd-text-primary)]"
               >
                 Choose Another Worksheet
+              </button>
+            )}
+            {onCancel && (
+              <button
+                type="button"
+                onClick={handleDismissIntake}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] hover:border-[var(--dd-border-strong)] hover:text-[var(--dd-text-primary)]"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Cancel</span>
               </button>
             )}
             <button

@@ -28,6 +28,7 @@ export interface WorkspaceRouteConfig {
   readonly shortcutKey: string;
   readonly icon: LucideIcon;
   readonly group: 'workspace' | 'system';
+  readonly requiresDataset: boolean;
   readonly summary: string;
   readonly plannedModule: string;
   readonly plannedCapabilities: readonly string[];
@@ -43,13 +44,14 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'O',
     icon: Compass,
     group: 'workspace',
+    requiresDataset: false,
     summary:
-      'Central investigative briefing room and local evidence intake bay for CSV and Excel (.xlsx) datasets.',
-    plannedModule: 'Active — Module 02 Evidence Intake',
+      'Central workspace command centre and local file intake for CSV and Excel (.xlsx) datasets.',
+    plannedModule: 'Evidence Intake & Data Quality',
     plannedCapabilities: [
       'Ingest CSV and Excel (.xlsx) files with local parsing and validation',
       'Inspect headers, worksheets, warnings, and bounded data previews',
-      'Register active datasets into browser memory for analytical modules',
+      'Review detected column schemas and dataset quality scores',
     ],
     prerequisites: [],
   },
@@ -61,9 +63,10 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'E',
     icon: Table2,
     group: 'workspace',
+    requiresDataset: true,
     summary:
-      'Interactive forensic spreadsheet explorer with global and column search, typed numeric and categorical filters, stable sorting, column visibility, and bounded pagination.',
-    plannedModule: 'Active — Module 05 Interactive Data Explorer',
+      'Interactive data explorer with global and column search, typed numeric and categorical filters, stable sorting, column visibility, and bounded pagination.',
+    plannedModule: 'Interactive Data Explorer',
     plannedCapabilities: [
       'Sticky-header scrollable grid preserving original cell values and explicit missing-value styling',
       'Case-insensitive global and column search combined with numeric range and category filters',
@@ -71,7 +74,7 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     ],
     prerequisites: [
       'Active CSV or Excel (.xlsx) file imported into workspace',
-      'Module 03 schema classifications and missing-value policy',
+      'Completed schema profiling and missing-value policy',
     ],
   },
   {
@@ -82,17 +85,18 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'A',
     icon: Activity,
     group: 'workspace',
+    requiresDataset: true,
     summary:
-      'Deterministic numeric descriptive statistics and categorical frequency distributions computed locally from Module 03 schema classifications.',
-    plannedModule: 'Active — Module 04 Statistical Engine',
+      'Numeric descriptive statistics and categorical frequency distributions computed locally from detected column schemas.',
+    plannedModule: 'Statistical Analysis',
     plannedCapabilities: [
       'Numeric descriptive statistics: mean, median, mode, min, max, range, variance, std dev, quartiles, and IQR',
       'Categorical frequency and percentage distributions with tie-aware most and least frequent categories',
-      'Explicit separation of valid observations from missing and invalid values under Module 03 policy',
+      'Explicit separation of valid observations from missing and invalid values',
     ],
     prerequisites: [
       'Active dataset loaded into workspace',
-      'Completed Module 03 schema profile',
+      'Completed dataset schema profile',
     ],
   },
   {
@@ -103,17 +107,18 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'V',
     icon: BarChart3,
     group: 'workspace',
+    requiresDataset: true,
     summary:
-      'Interactive Visualization Studio converting uploaded datasets into schema-validated bar charts, histograms, ordered line charts, scatter plots, and quartile box plots.',
-    plannedModule: 'Active — Module 06 Visualization Studio',
+      'Visualization Studio converting uploaded datasets into schema-validated bar charts, histograms, ordered line charts, scatter plots, and quartile box plots.',
+    plannedModule: 'Visualization Studio',
     plannedCapabilities: [
-      'Deterministic chart recommendations driven strictly by Module 03 column types and Module 04 statistics',
-      'Bar charts, numeric histograms, ordered/temporal line charts, scatter plots, and exact M04 quartile box plots',
+      'Chart recommendations driven strictly by detected column types and statistical baselines',
+      'Bar charts, numeric histograms, ordered/temporal line charts, scatter plots, and quartile box plots',
       'Interactive chart configuration, multi-chart workspace canvas, tooltips, and large-dataset downsampling',
     ],
     prerequisites: [
       'Active dataset imported into workspace',
-      'Completed Module 03 schema profile and Module 04 statistics',
+      'Completed schema profile and statistical analysis',
     ],
   },
   {
@@ -124,17 +129,18 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'I',
     icon: Crosshair,
     group: 'workspace',
+    requiresDataset: true,
     summary:
-      'Deterministic forensic findings workspace surfacing statistical outliers, data-quality issues, distribution patterns, categorical anomalies, and numeric correlations.',
-    plannedModule: 'Active — Module 07 Insights & Anomaly Detection',
+      'Integrated investigation workspace uniting automated anomaly findings, AI interpretations, structured investigation cases, evidence boards, hypotheses, and activity timelines.',
+    plannedModule: 'Automated Insights & Case Management',
     plannedCapabilities: [
-      'Deterministic IQR and optional Z-score numeric outlier detection with row-level Explorer navigation',
-      'Confirmed data-quality audits for missingness concentrations, invalid values, and zero-variance columns',
-      'Distribution skewness, categorical dominance/rarity, and Pearson correlation findings linked directly to charts',
+      'IQR/Z-score outliers, data-quality audits, distribution diagnostics, and correlation findings',
+      'Investigation case management with evidence boards, observations, hypotheses, conclusions, and timelines',
+      'Aggregate-only AI case interpretation with strict dataset isolation',
     ],
     prerequisites: [
       'Active dataset imported into workspace',
-      'Completed Module 03 schema profile and Module 04 statistical baselines',
+      'Completed schema profile and statistical baselines',
     ],
   },
   {
@@ -145,17 +151,18 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'C',
     icon: TerminalSquare,
     group: 'workspace',
+    requiresDataset: true,
     summary:
-      'Natural-language analytical interrogation grounded in verified statistical summaries via server-side Gemini endpoints.',
-    plannedModule: 'Module 06 — AI Investigation Service',
+      'Evidence-grounded AI Investigation Briefs, cross-finding hypotheses, validated workspace recommendations, and aggregate-only dataset Q&A.',
+    plannedModule: 'AI Investigation',
     plannedCapabilities: [
-      'Ask structured natural-language questions about active dataset evidence',
-      'Receive findings citing concrete columns, metrics, and detected anomalies',
-      'Server-side Vercel serverless execution keeping API credentials private',
+      'Generate structured Investigation Briefs grounded strictly in verified aggregate evidence',
+      'Surface cross-finding connections and validated follow-up actions across workspace views',
+      'Ask questions about aggregate findings without ever transmitting raw spreadsheet rows',
     ],
     prerequisites: [
-      'Active dataset profile and findings context',
-      'Server-side Gemini API integration (Module 06)',
+      'Active dataset imported into workspace',
+      'Completed schema profile, statistical analysis, and configured AI service',
     ],
   },
   {
@@ -166,17 +173,18 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: 'R',
     icon: FileText,
     group: 'workspace',
+    requiresDataset: true,
     summary:
-      'Compile structured, evidence-backed investigative dossiers summarizing findings, statistics, and key anomalies.',
-    plannedModule: 'Module 07 — Analytical Reports & Export',
+      'Compile structured, evidence-backed investigation dossiers and dataset analysis reports with A4 document preview and offline browser PDF export.',
+    plannedModule: 'Reports & Dossiers',
     plannedCapabilities: [
-      'Structured executive and forensic report generation from verified findings',
-      'Exportable analytical summaries and cleaned dataset artifacts',
-      'Reproducible citation of dataset metadata and statistical thresholds',
+      'Build Dataset Analysis, Data Quality, Statistical Analysis, Investigation Dossier, and Custom reports',
+      'Customize section ordering, headings, findings, statistical tables, charts, and optional AI interpretations',
+      'Preview institutional A4 layouts and export multi-page A4 PDF documents directly in the browser',
     ],
     prerequisites: [
-      'Completed statistical profile or investigation findings',
-      'Report compilation & export module (Module 07)',
+      'Active dataset imported into workspace',
+      'Completed schema profile and statistical baselines',
     ],
   },
   {
@@ -187,13 +195,14 @@ export const WORKSPACE_ROUTES: readonly WorkspaceRouteConfig[] = [
     shortcutKey: ',',
     icon: SlidersHorizontal,
     group: 'system',
+    requiresDataset: false,
     summary:
       'Configure workstation preferences, sidebar behavior, initialization sequence replay, and motion accessibility.',
-    plannedModule: 'Active — Module 01 Workstation Shell',
+    plannedModule: 'Workstation Preferences',
     plannedCapabilities: [
       'Control sidebar layout defaults and initialization playback',
       'Inspect live reduced-motion accessibility status',
-      'Review application intake limits and architecture boundaries',
+      'Review application intake limits and privacy boundaries',
     ],
     prerequisites: [],
   },

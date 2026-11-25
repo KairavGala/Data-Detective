@@ -38,9 +38,12 @@ export interface DataAnalysisEngine {
   readonly engineVersion: string;
 }
 
+export * from './assistant';
+export * from './cases';
 export * from './explorer';
 export * from './intake';
 export * from './investigation';
 export * from './profiling';
+export * from './reports';
 export * from './statistics';
 export * from './visualization';

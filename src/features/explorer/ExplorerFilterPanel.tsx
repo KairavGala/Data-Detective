@@ -164,7 +164,7 @@ export function ExplorerFilterPanel({
           </select>
 
           <span className="font-mono text-[0.72rem] text-[var(--dd-text-secondary)]">
-            M03 Type:{' '}
+            Detected Type:{' '}
             <strong className="font-medium text-[var(--dd-text-primary)]">
               {typeMeta.label}
             </strong>
@@ -236,7 +236,7 @@ export function ExplorerFilterPanel({
 
           <div className="space-y-1.5">
             <div className="font-mono text-[0.6875rem] tracking-[0.06em] text-[var(--dd-text-muted)] uppercase">
-              Missing Values (M03 Policy)
+              Missing Values (Active Policy)
             </div>
             <div
               role="group"
@@ -436,7 +436,7 @@ export function ExplorerFilterPanel({
                 <strong className="font-medium text-[var(--dd-text-primary)]">
                   {typeMeta.label}
                 </strong>{' '}
-                by Module 03. Use the case-insensitive Column Text Search or Missing Values controls on the left to filter records without coercing values.
+                during schema profiling. Use the case-insensitive Column Text Search or Missing Values controls on the left to filter records without coercing values.
               </p>
             </div>
           )}

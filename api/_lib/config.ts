@@ -28,6 +28,7 @@ export interface AiServerConfig {
   readonly geminiTimeoutMs: number;
   readonly handlerTimeoutMs: number;
   readonly prototypeEnabled: boolean;
+  readonly investigationEnabled?: boolean;
 }
 
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
@@ -60,6 +61,22 @@ function resolvePrototypeEnabled(env: NodeJS.ProcessEnv): boolean {
     return false;
   }
   return env.VERCEL_ENV !== 'production';
+}
+
+/**
+ * Resolves whether /api/ai/investigate is enabled.
+ * - Explicit AI_INVESTIGATION_ENABLED="false" / "0" disables the endpoint.
+ * - Defaults to enabled across local development, Preview, and Production.
+ */
+function resolveInvestigationEnabled(env: NodeJS.ProcessEnv): boolean {
+  const explicit = env.AI_INVESTIGATION_ENABLED?.trim().toLowerCase();
+  if (explicit === 'false' || explicit === '0') {
+    return false;
+  }
+  if (explicit === 'true' || explicit === '1') {
+    return true;
+  }
+  return true;
 }
 
 /**
@@ -117,5 +134,6 @@ export function loadAiServerConfig(
     geminiTimeoutMs,
     handlerTimeoutMs,
     prototypeEnabled: resolvePrototypeEnabled(env),
+    investigationEnabled: resolveInvestigationEnabled(env),
   };
 }

@@ -1,6 +1,15 @@
 import { type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
-import { Keyboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  Keyboard,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import {
+  getRouteNavIndicator,
+  useNavigationAwareness,
+} from '@/components/layout/useNavigationAwareness';
 import { ShortcutKeycap } from '@/components/shortcuts/ShortcutKeycap';
 import { BrandMark } from '@/components/ui/BrandMark';
 import { WORKSPACE_ROUTES } from '@/config/navigation';
@@ -16,6 +25,7 @@ interface SidebarProps {
 /**
  * Desktop investigative workstation sidebar.
  * Supports collapsible rail mode (72px), full dossier navigation (256px),
+ * live factual dataset/findings/cases/reports awareness indicators,
  * programmatic focus via keyboard shortcut, and roving Up/Down arrow navigation.
  */
 export function Sidebar({
@@ -24,6 +34,8 @@ export function Sidebar({
   onOpenShortcuts,
   sidebarRef,
 }: SidebarProps) {
+  const awareness = useNavigationAwareness();
+
   const workspaceRoutes = WORKSPACE_ROUTES.filter(
     (route) => route.group === 'workspace',
   );
@@ -124,34 +136,87 @@ export function Sidebar({
         </div>
       )}
 
+      {/* Compact Dataset Awareness Readout (expanded mode only) */}
+      {!collapsed && (
+        <div
+          data-testid="sidebar-dataset-status"
+          className="border-b border-[var(--dd-border-subtle)] px-4 py-3"
+        >
+          {awareness.hasDataset && awareness.datasetFileName ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <FileSpreadsheet
+                className="h-3.5 w-3.5 shrink-0 text-[var(--dd-status-verified)]"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <div
+                  title={awareness.datasetFileName}
+                  className="truncate text-[0.75rem] font-medium text-[var(--dd-text-primary)]"
+                >
+                  {awareness.datasetFileName}
+                </div>
+                <div className="font-mono text-[0.65rem] text-[var(--dd-text-muted)] dd-tabular">
+                  {awareness.datasetDimensions} · Loaded
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              <div className="font-mono text-[0.65rem] tracking-[0.06em] text-[var(--dd-text-muted)] uppercase">
+                Active Dataset
+              </div>
+              <div className="text-[0.75rem] text-[var(--dd-text-secondary)]">
+                No dataset loaded
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Primary analytical navigation */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-4">
         {!collapsed && (
           <div className="mb-2 px-2.5 font-mono text-[0.65rem] tracking-[0.09em] text-[var(--dd-text-muted)] uppercase">
-            Investigation Sections
+            Workspace
           </div>
         )}
 
         <ul className="space-y-1">
           {workspaceRoutes.map((route) => {
             const Icon = route.icon;
-            const shortcutTitle = `${route.label} (G then ${route.shortcutKey})`;
+            const indicator = getRouteNavIndicator(route.id, awareness);
+            const isAwaitingDataset =
+              route.requiresDataset &&
+              !awareness.hasDataset &&
+              !(route.id === 'reports' && awareness.sessionReportsCount > 0);
+
+            const shortcutTitle = indicator
+              ? `${route.label} — ${indicator.title} (G then ${route.shortcutKey})`
+              : isAwaitingDataset
+                ? `${route.label} — Load a dataset on Overview (G then ${route.shortcutKey})`
+                : `${route.label} (G then ${route.shortcutKey})`;
+
             return (
               <li key={route.id}>
                 <NavLink
                   to={route.path}
                   end={route.path === '/'}
                   data-sidebar-nav-item="true"
+                  data-dataset-state={
+                    isAwaitingDataset ? 'awaiting-dataset' : 'ready'
+                  }
                   title={shortcutTitle}
                   className={({ isActive }) =>
                     cn(
                       'group relative flex items-center rounded-[var(--dd-radius-sm)] text-[0.8125rem] font-medium transition-colors duration-150',
                       collapsed
                         ? 'justify-center px-2 py-2.5'
-                        : 'justify-between gap-2.5 px-2.5 py-2',
+                        : 'justify-between gap-2 px-2.5 py-2',
                       isActive
                         ? 'bg-[var(--dd-surface-elevated)] text-[var(--dd-text-primary)] shadow-[inset_0_0_0_1px_var(--dd-accent-teal-border)]'
-                        : 'text-[var(--dd-text-secondary)] hover:bg-[var(--dd-surface-hover)] hover:text-[var(--dd-text-primary)]',
+                        : isAwaitingDataset
+                          ? 'text-[var(--dd-text-muted)] hover:bg-[var(--dd-surface-hover)] hover:text-[var(--dd-text-secondary)]'
+                          : 'text-[var(--dd-text-secondary)] hover:bg-[var(--dd-surface-hover)] hover:text-[var(--dd-text-primary)]',
                     )
                   }
                 >
@@ -163,7 +228,9 @@ export function Sidebar({
                             'h-4 w-4 shrink-0 transition-colors',
                             isActive
                               ? 'text-[var(--dd-accent-teal)]'
-                              : 'text-[var(--dd-text-muted)] group-hover:text-[var(--dd-text-secondary)]',
+                              : isAwaitingDataset
+                                ? 'text-[var(--dd-text-muted)] opacity-60 group-hover:opacity-90'
+                                : 'text-[var(--dd-text-muted)] group-hover:text-[var(--dd-text-secondary)]',
                           )}
                           aria-hidden="true"
                         />
@@ -174,16 +241,23 @@ export function Sidebar({
                         )}
                       </span>
 
-                      {!collapsed && (
+                      {!collapsed && indicator && (
                         <span
+                          data-testid={`sidebar-indicator-${route.id}`}
                           className={cn(
-                            'font-mono text-[0.65rem] dd-tabular shrink-0',
-                            isActive
-                              ? 'text-[var(--dd-accent-teal)]'
-                              : 'text-[var(--dd-text-muted)] opacity-60 group-hover:opacity-100',
+                            'font-mono text-[0.68rem] dd-tabular shrink-0 whitespace-nowrap',
+                            indicator.tone === 'verified'
+                              ? 'text-[var(--dd-status-verified)]'
+                              : indicator.tone === 'analytical'
+                                ? 'text-[var(--dd-accent-teal)]'
+                                : 'text-[var(--dd-text-muted)]',
                           )}
                         >
-                          {route.sectionCode.replace('SEC-', '')}
+                          <span aria-hidden="true">{indicator.display}</span>
+                          <span className="sr-only">
+                            {' '}
+                            ({indicator.srLabel})
+                          </span>
                         </span>
                       )}
                     </>
@@ -220,36 +294,22 @@ export function Sidebar({
                   }
                 >
                   {({ isActive }) => (
-                    <>
-                      <span className="flex min-w-0 items-center gap-2.5">
-                        <Icon
-                          className={cn(
-                            'h-4 w-4 shrink-0 transition-colors',
-                            isActive
-                              ? 'text-[var(--dd-accent-teal)]'
-                              : 'text-[var(--dd-text-muted)] group-hover:text-[var(--dd-text-secondary)]',
-                          )}
-                          aria-hidden="true"
-                        />
-                        {!collapsed && (
-                          <span className="truncate whitespace-nowrap">
-                            {route.label}
-                          </span>
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Icon
+                        className={cn(
+                          'h-4 w-4 shrink-0 transition-colors',
+                          isActive
+                            ? 'text-[var(--dd-accent-teal)]'
+                            : 'text-[var(--dd-text-muted)] group-hover:text-[var(--dd-text-secondary)]',
                         )}
-                      </span>
+                        aria-hidden="true"
+                      />
                       {!collapsed && (
-                        <span
-                          className={cn(
-                            'font-mono text-[0.65rem] dd-tabular shrink-0',
-                            isActive
-                              ? 'text-[var(--dd-accent-teal)]'
-                              : 'text-[var(--dd-text-muted)] opacity-60 group-hover:opacity-100',
-                          )}
-                        >
-                          {route.sectionCode.replace('SEC-', '')}
+                        <span className="truncate whitespace-nowrap">
+                          {route.label}
                         </span>
                       )}
-                    </>
+                    </span>
                   )}
                 </NavLink>
               </li>

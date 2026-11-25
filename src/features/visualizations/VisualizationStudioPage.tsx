@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ArrowLeft,
   BarChart3,
+  FileText,
   Loader2,
   Plus,
   RefreshCw,
@@ -10,9 +11,11 @@ import {
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { WorkspaceHeader } from '@/components/layout/WorkspaceHeader';
 import { DossierLabel } from '@/components/ui/DossierLabel';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { useDataset } from '@/context/DatasetContext';
+import { useOptionalReports } from '@/context/ReportContext';
 import {
   DEFAULT_MAX_CHART_CATEGORIES,
   generateChartRecommendations,
@@ -48,6 +51,7 @@ export function VisualizationStudioPage() {
     statisticsError,
     recomputeStatistics,
   } = useDataset();
+  const reportsCtx = useOptionalReports();
 
   const recommendations = useMemo<readonly ChartRecommendation[]>(() => {
     if (!datasetProfile || !statisticalSummary) return [];
@@ -217,7 +221,7 @@ export function VisualizationStudioPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <DossierLabel
                 code="SEC-03"
-                label="Module 06 · Awaiting Dataset"
+                label="Visualization Studio"
               />
               <StatusIndicator tone="neutral" label="No Active Dataset" />
             </div>
@@ -254,9 +258,9 @@ export function VisualizationStudioPage() {
     const isProfileFailure = profilingStatus === 'error';
     const message = isProfileFailure
       ? (profilingError ??
-        'Module 03 schema profiling failed before visualizations could be prepared.')
+        'Dataset schema profiling failed before visualizations could be prepared.')
       : (statisticsError ??
-        'Module 04 statistical analysis failed before visualizations could be prepared.');
+        'Statistical analysis failed before visualizations could be prepared.');
 
     return (
       <PageContainer width="standard">
@@ -320,8 +324,8 @@ export function VisualizationStudioPage() {
                 Preparing Visualization Studio
               </h2>
               <p className="text-[0.8125rem] text-[var(--dd-text-secondary)]">
-                Generating deterministic chart recommendations from Module 03
-                schema classifications and Module 04 statistical baselines…
+                Generating deterministic chart recommendations from schema
+                classifications and statistical baselines…
               </p>
             </div>
           </section>
@@ -342,7 +346,7 @@ export function VisualizationStudioPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <DossierLabel
                 code="SEC-03"
-                label="Module 06 · Unsupported Schema"
+                label="Visualization Studio · Unsupported Schema"
               />
               <StatusIndicator tone="warning" label="No Chartable Columns" />
             </div>
@@ -354,7 +358,7 @@ export function VisualizationStudioPage() {
               <p className="max-w-2xl text-[0.875rem] leading-relaxed text-[var(--dd-text-secondary)]">
                 {datasetProfile.rowCount === 0
                   ? 'This dataset contains zero data rows. Import a file with tabular observations to generate visualizations.'
-                  : 'None of the columns in this dataset were classified as numeric or categorical by Module 03 (columns containing only identifiers, free text, dates without numeric measures, or empty values cannot be plotted validly).'}
+                  : 'None of the columns in this dataset were classified as numeric or categorical during schema profiling (columns containing only identifiers, free text, dates without numeric measures, or empty values cannot be plotted validly).'}
               </p>
             </div>
 
@@ -377,53 +381,67 @@ export function VisualizationStudioPage() {
         data-testid="visualizations-studio-workspace"
       >
         {/* Studio Header & Controls */}
-        <section className="dd-surface-primary flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <DossierLabel
-                code="SEC-03"
-                label="Module 06 · Visualization Studio"
-              />
-              <StatusIndicator
-                tone="verified"
-                label={`${formatCount(charts.length)} Active ${charts.length === 1 ? 'Chart' : 'Charts'}`}
-              />
-            </div>
-            <h2 className="truncate text-[1.25rem] font-semibold tracking-[-0.02em] text-[var(--dd-text-primary)]">
-              {activeDataset.fileName}
-            </h2>
-            <p className="font-mono dd-tabular text-[0.75rem] text-[var(--dd-text-muted)]">
-              Active dataset in memory: {activeDataset.fileName} ·{' '}
-              {formatCount(datasetProfile.rowCount)} rows ·{' '}
-              {formatCount(statisticalSummary.numericColumns.length)} numeric ·{' '}
-              {formatCount(statisticalSummary.categoricalColumns.length)}{' '}
-              categorical ·{' '}
-              {formatCount(recommendations.length)} recommended views
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsBuilderOpen((prev) => !prev)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-primary)] transition-colors hover:bg-[var(--dd-accent-teal)]/20 whitespace-nowrap"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Add Chart</span>
-            </button>
-
-            {recommendations.length > 0 && (
+        <WorkspaceHeader
+          code="SEC-03"
+          sectionLabel="Visualization Studio"
+          title="Visualization Studio"
+          context={`Active dataset in memory: ${activeDataset.fileName} · ${formatCount(datasetProfile.rowCount)} rows · ${formatCount(statisticalSummary.numericColumns.length)} numeric · ${formatCount(statisticalSummary.categoricalColumns.length)} categorical · ${formatCount(charts.length)} active ${charts.length === 1 ? 'chart' : 'charts'} (${formatCount(recommendations.length)} recommended)`}
+          navigationLinks={[
+            {
+              label: 'Data Explorer',
+              to: '/explorer',
+              testId: 'visualizations-nav-explorer',
+            },
+            {
+              label: 'Investigation Center',
+              to: '/investigation',
+              testId: 'visualizations-nav-investigation',
+            },
+          ]}
+          actions={
+            <>
               <button
                 type="button"
-                onClick={handleResetRecommended}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-accent-teal-border)] hover:text-[var(--dd-text-primary)] whitespace-nowrap"
+                onClick={() => setIsBuilderOpen((prev) => !prev)}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-primary)] transition-colors hover:bg-[var(--dd-accent-teal)]/20 whitespace-nowrap"
               >
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Reset Recommended</span>
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Add Chart</span>
               </button>
-            )}
-          </div>
-        </section>
+
+              <Link
+                to="/reports?source=dataset&type=dataset_analysis&charts=studio"
+                state={{
+                  studioChartHandoff: {
+                    datasetId: activeDataset.id,
+                    profiledAt: datasetProfile.profiledAt,
+                    charts: charts.map((cfg) => ({ ...cfg })),
+                    stagedAt: Date.now(),
+                  },
+                }}
+                onClick={() => {
+                  reportsCtx?.stageChartsForReport(charts);
+                }}
+                data-testid="visualizations-create-report-link"
+                className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-primary)] transition-colors hover:border-[var(--dd-accent-teal-border)] whitespace-nowrap"
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Include in Report</span>
+              </Link>
+
+              {recommendations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetRecommended}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-accent-teal-border)] hover:text-[var(--dd-text-primary)] whitespace-nowrap"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Reset Recommended</span>
+                </button>
+              )}
+            </>
+          }
+        />
 
         {/* Optional Custom Chart Builder */}
         {isBuilderOpen && (

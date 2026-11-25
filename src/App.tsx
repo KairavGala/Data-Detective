@@ -3,13 +3,16 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { BootSequence } from '@/components/cinematic/BootSequence';
 import { AppShell } from '@/components/layout/AppShell';
 import { DatasetProvider } from '@/context/DatasetContext';
+import { InvestigationProvider } from '@/context/InvestigationContext';
+import { ReportProvider } from '@/context/ReportContext';
+import { AiAssistantPage } from '@/features/assistant';
 import { DatasetExplorerPage } from '@/features/explorer';
 import { InvestigationCenterPage } from '@/features/investigation';
 import { OverviewPage } from '@/features/overview/OverviewPage';
+import { ReportsPage } from '@/features/reports';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { StatisticalAnalysisPage } from '@/features/statistics';
 import { VisualizationStudioPage } from '@/features/visualizations';
-import { ModulePlaceholderPage } from '@/features/workspace/ModulePlaceholderPage';
 
 const BOOT_SESSION_KEY = 'dd_boot_completed';
 const BOOT_SKIP_PREF_KEY = 'dd_skip_boot_startup';
@@ -69,35 +72,39 @@ export function AppWorkspace({ initialSkipBoot }: AppWorkspaceProps = {}) {
 
   return (
     <DatasetProvider>
-      {showBootSequence && <BootSequence onComplete={handleBootComplete} />}
+      <InvestigationProvider>
+        <ReportProvider>
+          {showBootSequence && <BootSequence onComplete={handleBootComplete} />}
 
-      <Routes>
-        <Route
-          element={
-            <AppShell
-              onReplayBoot={handleReplayBoot}
-              skipBootOnStartup={skipBootOnStartup}
-              onSetSkipBootOnStartup={handleSetSkipBootOnStartup}
-            />
-          }
-        >
-          <Route index element={<OverviewPage />} />
-          <Route path="explorer" element={<DatasetExplorerPage />} />
-          <Route path="analysis" element={<StatisticalAnalysisPage />} />
-          <Route path="visualizations" element={<VisualizationStudioPage />} />
-          <Route path="investigation" element={<InvestigationCenterPage />} />
-          <Route
-            path="assistant"
-            element={<ModulePlaceholderPage routeId="assistant" />}
-          />
-          <Route
-            path="reports"
-            element={<ModulePlaceholderPage routeId="reports" />}
-          />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+          <Routes>
+            <Route
+              element={
+                <AppShell
+                  onReplayBoot={handleReplayBoot}
+                  skipBootOnStartup={skipBootOnStartup}
+                  onSetSkipBootOnStartup={handleSetSkipBootOnStartup}
+                />
+              }
+            >
+              <Route index element={<OverviewPage />} />
+              <Route path="explorer" element={<DatasetExplorerPage />} />
+              <Route path="analysis" element={<StatisticalAnalysisPage />} />
+              <Route
+                path="visualizations"
+                element={<VisualizationStudioPage />}
+              />
+              <Route
+                path="investigation"
+                element={<InvestigationCenterPage />}
+              />
+              <Route path="assistant" element={<AiAssistantPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+        </ReportProvider>
+      </InvestigationProvider>
     </DatasetProvider>
   );
 }

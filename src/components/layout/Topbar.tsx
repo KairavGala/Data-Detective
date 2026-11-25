@@ -1,31 +1,25 @@
-import { ArrowLeft, Menu, RotateCcw } from 'lucide-react';
+import { FileSpreadsheet, Menu, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import type { WorkspaceRouteConfig } from '@/config/navigation';
 import { useDataset } from '@/context/DatasetContext';
-import { formatCount } from '@/utils';
+import { cn, formatCount } from '@/utils';
 
 interface TopbarProps {
-  currentRoute: WorkspaceRouteConfig;
-  onOpenMobileMenu: () => void;
-  onReplayBoot: () => void;
+  readonly currentRoute: WorkspaceRouteConfig;
+  readonly onOpenMobileMenu: () => void;
 }
 
 /**
  * Forensic workstation Topbar.
- * Displays active section identity, real in-memory dataset context,
- * application status indicator, and functional contextual actions.
+ * Displays active section identity (sole H1) and a compact, responsive,
+ * interactive dataset indicator linking directly to Overview dataset management
+ * on both desktop and mobile viewports.
  */
-export function Topbar({
-  currentRoute,
-  onOpenMobileMenu,
-  onReplayBoot,
-}: TopbarProps) {
+export function Topbar({ currentRoute, onOpenMobileMenu }: TopbarProps) {
   const { activeDataset } = useDataset();
-  const isOverview = currentRoute.id === 'overview';
 
   return (
-    <header className="sticky top-0 z-[var(--dd-z-sticky)] flex h-14 shrink-0 items-center justify-between gap-4 border-b border-[var(--dd-border-subtle)] bg-[var(--dd-bg-backdrop)]/95 px-4 backdrop-blur-sm sm:px-6">
+    <header className="sticky top-0 z-[var(--dd-z-sticky)] flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[var(--dd-border-subtle)] bg-[var(--dd-bg-backdrop)]/95 px-4 backdrop-blur-sm sm:gap-4 sm:px-6">
       {/* Left zone: Mobile drawer toggle + Active section title */}
       <div className="flex min-w-0 items-center gap-3">
         <button
@@ -53,68 +47,57 @@ export function Topbar({
         </div>
       </div>
 
-      {/* Center/Right context zone: Real dataset context + status + contextual action */}
-      <div className="flex items-center gap-4 sm:gap-5 shrink-0">
-        {/* Current dataset context area */}
-        <div
-          className="hidden md:flex items-center gap-2.5 border-r border-[var(--dd-border-subtle)] pr-5 max-w-[360px]"
+      {/* Right zone: Interactive responsive dataset context indicator (desktop & mobile) */}
+      <div className="flex min-w-0 items-center shrink-0">
+        <Link
+          to="/"
           data-testid="topbar-dataset-context"
+          title={
+            activeDataset
+              ? `Manage active dataset: ${activeDataset.fileName}${activeDataset.sheetName ? ` (${activeDataset.sheetName})` : ''}`
+              : 'Import a dataset on Overview'
+          }
+          aria-label={
+            activeDataset
+              ? `Active dataset ${activeDataset.fileName} (${formatCount(activeDataset.rowCount)} rows by ${formatCount(activeDataset.columnCount)} columns). Open dataset overview.`
+              : 'No file loaded. Open Overview to import a dataset.'
+          }
+          className={cn(
+            'inline-flex min-w-0 items-center gap-2 rounded-[var(--dd-radius-sm)] border px-2.5 py-1.5 text-[0.8125rem] transition-colors whitespace-nowrap',
+            activeDataset
+              ? 'border-[var(--dd-accent-teal-border)] bg-[var(--dd-surface-primary)] text-[var(--dd-text-primary)] hover:border-[var(--dd-accent-teal)] hover:bg-[var(--dd-surface-elevated)]'
+              : 'border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] text-[var(--dd-text-secondary)] hover:border-[var(--dd-border-strong)] hover:text-[var(--dd-text-primary)]',
+          )}
         >
-          <span className="font-mono text-[0.7rem] tracking-[0.06em] text-[var(--dd-text-muted)] uppercase whitespace-nowrap shrink-0">
-            Dataset
-          </span>
           {activeDataset ? (
-            <div className="flex min-w-0 items-center gap-2 text-[0.8125rem]">
-              <span
-                title={
-                  activeDataset.sheetName
-                    ? `${activeDataset.fileName} (${activeDataset.sheetName})`
-                    : activeDataset.fileName
-                }
-                className="truncate font-medium text-[var(--dd-text-primary)]"
-              >
+            <>
+              <FileSpreadsheet
+                className="h-3.5 w-3.5 shrink-0 text-[var(--dd-accent-teal)]"
+                aria-hidden="true"
+              />
+              <span className="max-w-[115px] truncate font-medium sm:max-w-[200px] md:max-w-[260px]">
                 {activeDataset.fileName}
               </span>
-              <span
-                className="font-mono text-[0.7rem] text-[var(--dd-text-muted)] dd-tabular whitespace-nowrap shrink-0"
-              >
+              <span className="font-mono text-[0.7rem] text-[var(--dd-text-muted)] dd-tabular shrink-0">
                 {formatCount(activeDataset.rowCount)}×
                 {formatCount(activeDataset.columnCount)}
               </span>
-            </div>
+              <span className="hidden font-mono text-[0.68rem] uppercase text-[var(--dd-accent-teal)] md:inline shrink-0">
+                {activeDataset.fileType}
+              </span>
+            </>
           ) : (
-            <span className="text-[0.8125rem] text-[var(--dd-text-secondary)] whitespace-nowrap">
-              No file loaded
-            </span>
+            <>
+              <Upload
+                className="h-3.5 w-3.5 shrink-0 text-[var(--dd-text-muted)]"
+                aria-hidden="true"
+              />
+              <span className="text-[0.78rem] sm:text-[0.8125rem]">
+                No file loaded
+              </span>
+            </>
           )}
-        </div>
-
-        {/* Application status indicator */}
-        <StatusIndicator
-          tone={activeDataset ? 'verified' : 'analytical'}
-          label={activeDataset ? 'Dataset Loaded' : 'Standby'}
-          className="hidden sm:inline-flex"
-        />
-
-        {/* Contextual action */}
-        {isOverview ? (
-          <button
-            type="button"
-            onClick={onReplayBoot}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3 py-1.5 text-[0.75rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-border-strong)] hover:text-[var(--dd-text-primary)] whitespace-nowrap shrink-0"
-          >
-            <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>Replay Intro</span>
-          </button>
-        ) : (
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3 py-1.5 text-[0.75rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-border-strong)] hover:text-[var(--dd-text-primary)] whitespace-nowrap shrink-0"
-          >
-            <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>Overview</span>
-          </Link>
-        )}
+        </Link>
       </div>
     </header>
   );

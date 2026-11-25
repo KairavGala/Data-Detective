@@ -2,8 +2,7 @@ import { Keyboard, PanelLeft, RotateCcw } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import type { AppShellContext } from '@/components/layout/AppShell';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { DossierLabel } from '@/components/ui/DossierLabel';
-import { StatusIndicator } from '@/components/ui/StatusIndicator';
+import { WorkspaceHeader } from '@/components/layout/WorkspaceHeader';
 import { APP_CONFIG } from '@/config/app.config';
 import { useKeyboardShortcuts } from '@/context/KeyboardShortcutsContext';
 import { useReducedMotion } from '@/hooks';
@@ -35,20 +34,12 @@ export function SettingsPage() {
     <PageContainer width="standard">
       <div className="dd-anim-file-enter space-y-8">
         {/* Header */}
-        <header className="flex flex-col gap-3 border-b border-[var(--dd-border-subtle)] pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <DossierLabel code="SEC-07" label="Workstation Preferences" />
-            <h2 className="text-[1.5rem] font-semibold tracking-[-0.02em] text-[var(--dd-text-primary)]">
-              Settings
-            </h2>
-            <p className="max-w-2xl text-[0.9375rem] text-[var(--dd-text-secondary)]">
-              Manage application shell layout, keyboard command navigation,
-              cinematic initialization behavior, and verify motion accessibility
-              settings.
-            </p>
-          </div>
-          <StatusIndicator tone="verified" label="Shell Active" />
-        </header>
+        <WorkspaceHeader
+          code="SEC-07"
+          sectionLabel="Workstation Preferences"
+          title="Settings"
+          description="Manage application shell layout, keyboard command navigation, cinematic initialization behavior, and verify motion accessibility settings."
+        />
 
         {/* Functional Workstation Controls */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -212,10 +203,10 @@ export function SettingsPage() {
 
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-[var(--dd-text-muted)]">
-                  Planned AI Proxy
+                  AI Investigation Service
                 </dt>
                 <dd className="font-mono text-[var(--dd-text-secondary)]">
-                  {APP_CONFIG.apiRoutes.investigate}
+                  Server-side (aggregate summaries only)
                 </dd>
               </div>
             </dl>

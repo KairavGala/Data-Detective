@@ -33,15 +33,15 @@ function describeUnsupportedReason(
 ): string {
   switch (detectedType) {
     case 'identifier':
-      return 'Classified as an identifier by Module 03; entity keys and codes are excluded from numeric and categorical statistical aggregation.';
+      return 'Classified as an identifier during schema profiling; entity keys and codes are excluded from numeric and categorical statistical aggregation.';
     case 'date':
-      return 'Classified as a date column by Module 03; chronological and time-series statistics are outside Module 04 scope.';
+      return 'Classified as a date column during schema profiling; chronological and time-series statistics are outside numeric and categorical aggregation scope.';
     case 'boolean':
-      return 'Classified as a boolean column by Module 03; binary flag columns are listed separately from continuous numeric and general categorical statistics.';
+      return 'Classified as a boolean column during schema profiling; binary flag columns are listed separately from continuous numeric and general categorical statistics.';
     case 'unknown':
       return colProfile.nonMissingCount === 0
-        ? 'Column contains no populated values under the active missing-value policy (classified as unknown by Module 03).'
-        : 'Classified as unknown by Module 03 due to mixed incompatible value types; excluded to avoid misleading statistical summaries.';
+        ? 'Column contains no populated values under the active missing-value policy (classified as unknown).'
+        : 'Classified as unknown due to mixed incompatible value types; excluded to avoid misleading statistical summaries.';
   }
 }
 

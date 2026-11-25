@@ -292,7 +292,7 @@ export function ExplorerDataTable({
                       return (
                         <td
                           key={col.id}
-                          title={`Original value "${formatted}" (treated as missing under Module 03 policy)`}
+                          title={`Original value "${formatted}" (treated as missing under active missing-value policy)`}
                           className={cn(
                             'max-w-[280px] truncate border-r border-[var(--dd-border-subtle)] px-3 py-2 font-mono text-[0.78rem] text-[var(--dd-status-warning)]/80 last:border-r-0',
                             isNumeric && 'text-right dd-tabular',

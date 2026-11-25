@@ -99,7 +99,7 @@ export function NumericStatisticsSection({
           data-testid="numeric-empty-state"
           className="px-6 py-8 text-[0.875rem] text-[var(--dd-text-secondary)]"
         >
-          No columns were classified as numeric by Module 03 in the active dataset.
+          No columns were classified as numeric in the active dataset.
         </div>
       ) : columns.length === 0 ? (
         <div className="px-6 py-8 text-[0.875rem] text-[var(--dd-text-secondary)]">

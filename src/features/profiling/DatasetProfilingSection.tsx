@@ -116,7 +116,7 @@ export function DatasetProfilingSection() {
           <div className="space-y-1.5">
             <DossierLabel
               code="SCHEMA PROFILE"
-              label={`Module 03 · ${datasetProfile.fileName}`}
+              label={datasetProfile.fileName}
             />
             <h3
               id="dataset-profile-overview-heading"

@@ -66,6 +66,7 @@ export default async function handler(
     requestId,
     configured: config.apiKey !== null,
     prototypeEnabled: config.prototypeEnabled,
+    investigationEnabled: config.investigationEnabled ?? true,
     model: config.model,
     sdkAttemptsConfigured: SDK_ATTEMPTS_CONFIGURED,
     timeouts: {

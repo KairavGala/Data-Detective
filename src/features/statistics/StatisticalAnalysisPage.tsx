@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
+  FileText,
   Loader2,
   RefreshCw,
   Search,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { WorkspaceHeader } from '@/components/layout/WorkspaceHeader';
 import { DossierLabel } from '@/components/ui/DossierLabel';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { useDataset } from '@/context/DatasetContext';
@@ -83,7 +85,7 @@ export function StatisticalAnalysisPage() {
         >
           <section className="dd-surface-primary space-y-5 p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <DossierLabel code="SEC-02" label="Module 04 · Awaiting Dataset" />
+              <DossierLabel code="SEC-02" label="Statistical Analysis" />
               <StatusIndicator tone="neutral" label="No Active Dataset" />
             </div>
 
@@ -119,7 +121,7 @@ export function StatisticalAnalysisPage() {
     const isProfileFailure = profilingStatus === 'error';
     const message = isProfileFailure
       ? (profilingError ??
-        'Module 03 schema profiling failed before statistics could be computed.')
+        'Dataset schema profiling failed before statistics could be computed.')
       : (statisticsError ??
         'An unexpected error occurred while computing dataset statistics.');
 
@@ -237,38 +239,51 @@ export function StatisticalAnalysisPage() {
         data-analyzed-dataset-id={statisticalSummary.datasetId}
       >
         {/* Header bar */}
-        <header className="flex flex-col gap-4 border-b border-[var(--dd-border-subtle)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1.5">
-            <DossierLabel
-              code="SEC-02"
-              label={`Module 04 · ${statisticalSummary.fileName}`}
-            />
-            <h2 className="text-[1.375rem] font-semibold tracking-[-0.02em] text-[var(--dd-text-primary)]">
-              Statistical Analysis
-            </h2>
-            <p className="max-w-2xl text-[0.875rem] leading-relaxed text-[var(--dd-text-secondary)]">
-              Deterministic descriptive statistics and categorical distributions
-              derived strictly from Module 03 column classifications.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            {statisticsStatus === 'analyzing' && (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[0.72rem] text-[var(--dd-accent-teal)]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                Updating…
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={recomputeStatistics}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-accent-teal-border)] hover:text-[var(--dd-text-primary)] whitespace-nowrap shrink-0"
-            >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Recompute</span>
-            </button>
-          </div>
-        </header>
+        <WorkspaceHeader
+          code="SEC-02"
+          sectionLabel="Statistical Analysis"
+          title="Statistical Analysis"
+          context={`${statisticalSummary.fileName} · ${formatCount(overview.totalRows)} rows · ${formatCount(overview.numericColumnCount)} numeric · ${formatCount(overview.categoricalColumnCount)} categorical`}
+          description="Deterministic descriptive statistics and categorical distributions derived from profiled column classifications."
+          navigationLinks={[
+            {
+              label: 'Data Explorer',
+              to: '/explorer',
+              testId: 'statistics-nav-explorer',
+            },
+            {
+              label: 'Visualization Studio',
+              to: '/visualizations',
+              testId: 'statistics-nav-visualizations',
+            },
+          ]}
+          actions={
+            <>
+              {statisticsStatus === 'analyzing' && (
+                <span className="inline-flex items-center gap-1.5 font-mono text-[0.72rem] text-[var(--dd-accent-teal)]">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  Updating…
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={recomputeStatistics}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-secondary)] transition-colors hover:border-[var(--dd-accent-teal-border)] hover:text-[var(--dd-text-primary)] whitespace-nowrap shrink-0"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Recompute</span>
+              </button>
+              <Link
+                to="/reports?source=dataset&type=statistical_analysis"
+                data-testid="statistics-create-report-link"
+                className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-2 text-[0.8125rem] font-medium text-[var(--dd-text-primary)] transition-colors hover:bg-[var(--dd-accent-teal)]/20 whitespace-nowrap shrink-0"
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Create Report</span>
+              </Link>
+            </>
+          }
+        />
 
         {/* Dataset Summary */}
         <DatasetStatisticsOverview summary={statisticalSummary} />
@@ -287,7 +302,7 @@ export function StatisticalAnalysisPage() {
             <p>
               {hasZeroRows
                 ? 'Headers were imported, but there are no row observations available to compute numeric or categorical statistics.'
-                : 'Every column in this dataset was classified by Module 03 as date, boolean, identifier, or unknown. Review the excluded columns ledger below for column-level reasons.'}
+                : 'Every column in this dataset was classified as date, boolean, identifier, or unknown. Review the excluded columns ledger below for column-level reasons.'}
             </p>
           </section>
         )}

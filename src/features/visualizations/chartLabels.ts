@@ -15,13 +15,13 @@ export const CHART_TYPE_OPTIONS: readonly {
     value: 'bar',
     label: 'Bar Chart',
     shortTag: 'BAR · CATEGORICAL',
-    description: 'Categorical frequency distribution from Module 04',
+    description: 'Categorical frequency distribution',
   },
   {
     value: 'histogram',
     label: 'Histogram',
     shortTag: 'HISTOGRAM · NUMERIC',
-    description: 'Binned numeric distribution with M04 mean and median',
+    description: 'Binned numeric distribution with mean and median',
   },
   {
     value: 'line',
@@ -39,7 +39,7 @@ export const CHART_TYPE_OPTIONS: readonly {
     value: 'boxplot',
     label: 'Box Plot',
     shortTag: 'BOX PLOT · QUARTILES',
-    description: 'Exact M04 five-number quartile summary (Min–Max)',
+    description: 'Exact five-number quartile summary (Min–Max)',
   },
 ];
 

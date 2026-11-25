@@ -111,7 +111,7 @@ export function CategoricalStatisticsSection({
           data-testid="categorical-empty-state"
           className="px-6 py-8 text-[0.875rem] text-[var(--dd-text-secondary)]"
         >
-          No columns were classified as categorical by Module 03 in the active dataset.
+          No columns were classified as categorical in the active dataset.
         </div>
       ) : columns.length === 0 ? (
         <div className="px-6 py-8 text-[0.875rem] text-[var(--dd-text-secondary)]">

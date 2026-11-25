@@ -40,7 +40,7 @@ export function UnsupportedColumnsSection({
         </div>
 
         <span className="font-mono text-[0.75rem] text-[var(--dd-text-muted)]">
-          Honoring Module 03 column classifications without coercing incompatible types
+          Honoring profiled column classifications without coercing incompatible types
         </span>
       </div>
 
@@ -54,7 +54,7 @@ export function UnsupportedColumnsSection({
             <thead>
               <tr className="border-b border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] font-mono text-[0.6875rem] tracking-[0.06em] text-[var(--dd-text-muted)] uppercase">
                 <th className="py-3 pl-6 pr-3 font-medium">Column</th>
-                <th className="px-3 py-3 font-medium">Module 03 Type</th>
+                <th className="px-3 py-3 font-medium">Detected Type</th>
                 <th className="px-3 py-3 text-right font-medium">Populated / Missing</th>
                 <th className="py-3 pl-3 pr-6 font-medium">Exclusion Reason</th>
               </tr>

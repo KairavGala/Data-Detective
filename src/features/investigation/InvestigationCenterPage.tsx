@@ -1,19 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  FileText,
+  FolderPlus,
   Loader2,
   RefreshCw,
   Search,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { WorkspaceHeader } from '@/components/layout/WorkspaceHeader';
 import { DossierLabel } from '@/components/ui/DossierLabel';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { useDataset } from '@/context/DatasetContext';
+import {
+  InvestigationProvider,
+  useInvestigation,
+  useOptionalInvestigation,
+} from '@/context/InvestigationContext';
 import {
   analyzeDatasetInsights,
   DEFAULT_ANOMALY_CONFIG,
@@ -24,9 +33,12 @@ import type {
   InsightCategory,
   InsightClassification,
   InsightSeverity,
+  InvestigationCasePriority,
 } from '@/types';
 import { cn, formatCount } from '@/utils';
-import { InsightCard } from './InsightCard';
+import { CaseDetailView } from './CaseDetailView';
+import { CasesOverviewPanel } from './CasesOverviewPanel';
+import { InsightCard, type LinkedCaseRef } from './InsightCard';
 import {
   CATEGORY_META,
   CATEGORY_ORDER,
@@ -36,6 +48,7 @@ import {
 
 type SeverityFilter = 'all' | InsightSeverity;
 type ClassificationFilter = 'all' | InsightClassification;
+type AssignmentFilter = 'all' | 'unassigned' | 'important_unresolved';
 type InsightSortMode = 'severity' | 'category' | 'column';
 
 const IQR_MULTIPLIER_OPTIONS = [
@@ -51,11 +64,25 @@ const ZSCORE_THRESHOLD_OPTIONS = [
 ] as const;
 
 /**
- * Module 07 — Investigation Center (`/investigation`).
- * Runs deterministic insight and anomaly detection over activeDataset using
- * Module 03 schema classifications and Module 04 statistical baselines.
+ * Module 07 + Module 09 — Integrated Investigation Center (`/investigation`).
+ *
+ * Unifies deterministic Module 07 findings, Module 08 AI intelligence (when
+ * available), and Module 09 investigation case management, evidence boards,
+ * structured notes/hypotheses, AI-assisted case analysis, and timelines.
  */
 export function InvestigationCenterPage() {
+  const existing = useOptionalInvestigation();
+  if (!existing) {
+    return (
+      <InvestigationProvider>
+        <InvestigationCenterContent />
+      </InvestigationProvider>
+    );
+  }
+  return <InvestigationCenterContent />;
+}
+
+function InvestigationCenterContent() {
   const {
     activeDataset,
     datasetProfile,
@@ -68,13 +95,45 @@ export function InvestigationCenterPage() {
     recomputeStatistics,
   } = useDataset();
 
+  const {
+    allCases,
+    currentDatasetCases,
+    previousDatasetCases,
+    verifiedAiBrief,
+    createCase,
+    updateCase,
+    setCaseStatus,
+    setCasePriority,
+    archiveCaseById,
+    reopenCaseById,
+    attachFinding,
+    addEvidence,
+    removeEvidence,
+    addNote,
+    editNote,
+    deleteNote,
+    saveCaseAiAnalysis,
+  } = useInvestigation();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusedFindingId = searchParams.get('finding');
+  const activeCaseId = searchParams.get('case');
+
   const [detectionConfig, setDetectionConfig] =
     useState<AnomalyDetectionConfig>(DEFAULT_ANOMALY_CONFIG);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
   const [classificationFilter, setClassificationFilter] =
     useState<ClassificationFilter>('all');
+  const [assignmentFilter, setAssignmentFilter] =
+    useState<AssignmentFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<InsightSortMode>('severity');
+  const [selectedFindingIds, setSelectedFindingIds] = useState<string[]>([]);
+
+  // Reset transient finding selections when dataset changes or is cleared
+  useEffect(() => {
+    setSelectedFindingIds([]);
+  }, [activeDataset?.id]);
 
   const investigationSummary = useMemo(() => {
     if (!activeDataset || !datasetProfile || !statisticalSummary) return null;
@@ -85,6 +144,171 @@ export function InvestigationCenterPage() {
       detectionConfig,
     );
   }, [activeDataset, datasetProfile, statisticalSummary, detectionConfig]);
+
+  const validFindingIdSet = useMemo<ReadonlySet<string>>(() => {
+    if (!investigationSummary) return new Set();
+    return new Set(investigationSummary.insights.map((f) => f.id));
+  }, [investigationSummary]);
+
+  const insightsById = useMemo<ReadonlyMap<string, DatasetInsight>>(() => {
+    if (!investigationSummary) return new Map();
+    return new Map(investigationSummary.insights.map((f) => [f.id, f]));
+  }, [investigationSummary]);
+
+  // Map finding ID -> linked non-archived cases for the CURRENT dataset only
+  const linkedCasesByFindingId = useMemo(() => {
+    const map = new Map<string, LinkedCaseRef[]>();
+    for (const c of currentDatasetCases) {
+      if (c.archived) continue;
+      for (const fid of c.findingIds) {
+        const list = map.get(fid) ?? [];
+        list.push({ id: c.id, title: c.title, status: c.status });
+        map.set(fid, list);
+      }
+    }
+    return map;
+  }, [currentDatasetCases]);
+
+  const resolvedFindingIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of currentDatasetCases) {
+      if (c.status === 'resolved') {
+        for (const fid of c.findingIds) set.add(fid);
+      }
+    }
+    return set;
+  }, [currentDatasetCases]);
+
+  const activeCaseChoices = useMemo(
+    () =>
+      currentDatasetCases
+        .filter((c) => !c.archived)
+        .map((c) => ({ id: c.id, title: c.title })),
+    [currentDatasetCases],
+  );
+
+  const openCaseById = (caseId: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('case', caseId);
+    next.delete('finding');
+    setSearchParams(next);
+  };
+
+  const closeCaseDetail = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('case');
+    setSearchParams(next);
+  };
+
+  const handleCreateCaseFromFinding = (finding: DatasetInsight) => {
+    const res = createCase({
+      title: finding.title,
+      description: finding.explanation,
+      initialFindings: [finding],
+    });
+    if (res) {
+      openCaseById(res.caseItem.id);
+    }
+  };
+
+  const handleCreateCaseFromSelected = () => {
+    const findings = selectedFindingIds
+      .map((id) => insightsById.get(id))
+      .filter((f): f is DatasetInsight => f !== undefined);
+    if (findings.length === 0) return;
+
+    const title =
+      findings.length === 1
+        ? findings[0]!.title
+        : `Combined Investigation: ${findings.length} Findings (${findings[0]!.affectedColumnNames[0] ?? activeDataset?.fileName ?? 'Dataset'})`;
+
+    const res = createCase({
+      title,
+      description: `Investigating ${findings.length} selected deterministic findings together.`,
+      initialFindings: findings,
+    });
+    if (res) {
+      setSelectedFindingIds([]);
+      openCaseById(res.caseItem.id);
+    }
+  };
+
+  const handleAttachFinding = (caseId: string, finding: DatasetInsight) => {
+    attachFinding(caseId, finding, validFindingIdSet);
+  };
+
+  const handleCreateManualCase = (input: {
+    readonly title: string;
+    readonly description: string;
+    readonly priority: InvestigationCasePriority;
+    readonly initialFindingIds: readonly string[];
+  }) => {
+    const initialFindings = input.initialFindingIds
+      .map((id) => insightsById.get(id))
+      .filter((f): f is DatasetInsight => f !== undefined);
+
+    const res = createCase({
+      title: input.title,
+      description: input.description,
+      priority: input.priority,
+      initialFindings,
+    });
+    if (!res) return null;
+    return {
+      created: res.created,
+      caseId: res.caseItem.id,
+      duplicateReason: res.duplicateReason,
+    };
+  };
+
+  const handleCreateCaseFromRecommendation = (
+    title: string,
+    reason: string,
+    findingIds: readonly string[],
+  ) => {
+    const initialFindings = findingIds
+      .map((id) => insightsById.get(id))
+      .filter((f): f is DatasetInsight => f !== undefined);
+
+    const res = createCase({
+      title,
+      description: reason,
+      initialFindings,
+    });
+    if (res) {
+      openCaseById(res.caseItem.id);
+    }
+  };
+
+  const toggleSelectFinding = (findingId: string) => {
+    setSelectedFindingIds((prev) =>
+      prev.includes(findingId)
+        ? prev.filter((id) => id !== findingId)
+        : [...prev, findingId],
+    );
+  };
+
+  const selectedCase = useMemo(
+    () => (activeCaseId ? allCases.find((c) => c.id === activeCaseId) ?? null : null),
+    [activeCaseId, allCases],
+  );
+
+  // Findings counts for Module 09 overview
+  const unassignedCount = useMemo(() => {
+    if (!investigationSummary) return 0;
+    return investigationSummary.insights.filter(
+      (f) => (linkedCasesByFindingId.get(f.id)?.length ?? 0) === 0,
+    ).length;
+  }, [investigationSummary, linkedCasesByFindingId]);
+
+  const importantUnresolvedCount = useMemo(() => {
+    if (!investigationSummary) return 0;
+    return investigationSummary.insights.filter(
+      (f) =>
+        (f.severity === 'critical' || f.severity === 'high') &&
+        !resolvedFindingIds.has(f.id),
+    ).length;
+  }, [investigationSummary, resolvedFindingIds]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -100,6 +324,17 @@ export function InvestigationCenterPage() {
         insight.classification !== classificationFilter
       ) {
         return false;
+      }
+      if (assignmentFilter === 'unassigned') {
+        if ((linkedCasesByFindingId.get(insight.id)?.length ?? 0) > 0) {
+          return false;
+        }
+      } else if (assignmentFilter === 'important_unresolved') {
+        const isImportant =
+          insight.severity === 'critical' || insight.severity === 'high';
+        if (!isImportant || resolvedFindingIds.has(insight.id)) {
+          return false;
+        }
       }
       if (normalizedQuery) {
         const haystack = [
@@ -151,6 +386,9 @@ export function InvestigationCenterPage() {
     investigationSummary,
     severityFilter,
     classificationFilter,
+    assignmentFilter,
+    linkedCasesByFindingId,
+    resolvedFindingIds,
     normalizedQuery,
     sortMode,
   ]);
@@ -169,6 +407,43 @@ export function InvestigationCenterPage() {
     }));
   }, [filteredInsights]);
 
+  // 0. If user explicitly opened a case detail (even a read-only previous-dataset case)
+  if (selectedCase) {
+    return (
+      <PageContainer width="wide">
+        <CaseDetailView
+          caseItem={selectedCase}
+          activeDatasetId={activeDataset?.id ?? null}
+          activeDatasetFileName={activeDataset?.fileName ?? null}
+          profile={datasetProfile}
+          stats={statisticalSummary}
+          investigation={investigationSummary}
+          existingBrief={verifiedAiBrief}
+          onBackToOverview={closeCaseDetail}
+          onUpdateDetails={(updates) => updateCase(selectedCase.id, updates)}
+          onChangeStatus={(status) => setCaseStatus(selectedCase.id, status)}
+          onChangePriority={(priority) =>
+            setCasePriority(selectedCase.id, priority)
+          }
+          onArchive={() => archiveCaseById(selectedCase.id)}
+          onReopen={() => reopenCaseById(selectedCase.id)}
+          onAddEvidence={(item) => addEvidence(selectedCase.id, item)}
+          onRemoveEvidence={(evidenceId) =>
+            removeEvidence(selectedCase.id, evidenceId)
+          }
+          onAddNote={(input) => addNote(selectedCase.id, input)}
+          onEditNote={(noteId, updates) =>
+            editNote(selectedCase.id, noteId, updates)
+          }
+          onDeleteNote={(noteId) => deleteNote(selectedCase.id, noteId)}
+          onRecordAiAnalysis={(record) =>
+            saveCaseAiAnalysis(selectedCase.id, record)
+          }
+        />
+      </PageContainer>
+    );
+  }
+
   // 1. Empty state: no dataset loaded yet
   if (!activeDataset) {
     return (
@@ -181,7 +456,7 @@ export function InvestigationCenterPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <DossierLabel
                 code="SEC-04"
-                label="Module 07 · Awaiting Dataset"
+                label="Automated Insights & Cases"
               />
               <StatusIndicator tone="neutral" label="No Active Dataset" />
             </div>
@@ -193,9 +468,9 @@ export function InvestigationCenterPage() {
               <p className="max-w-2xl text-[0.9375rem] leading-relaxed text-[var(--dd-text-secondary)]">
                 Import a CSV or Excel (.xlsx) dataset on the Overview workspace
                 to run deterministic anomaly detection (IQR & optional Z-score
-                outliers), data-quality audits, categorical concentration checks,
-                distribution diagnostics, and pairwise correlation analysis
-                locally in your browser.
+                outliers), open investigation cases, build verified evidence
+                boards, record hypotheses, and run aggregate-only AI case
+                interpretations.
               </p>
             </div>
 
@@ -209,6 +484,49 @@ export function InvestigationCenterPage() {
               </Link>
             </div>
           </section>
+
+          {/* Clearly isolated previous-dataset case notice when dataset was cleared */}
+          {previousDatasetCases.length > 0 && (
+            <section
+              data-testid="cleared-dataset-previous-cases"
+              className="dd-surface-primary space-y-3 border-[var(--dd-status-warning-border)] p-5"
+            >
+              <div className="flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-status-warning)]">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>
+                  Inactive Session Cases from Previous Dataset (
+                  {formatCount(previousDatasetCases.length)})
+                </span>
+              </div>
+              <p className="text-[0.8125rem] text-[var(--dd-text-secondary)]">
+                The active dataset has been cleared. Previous cases are retained
+                read-only for reference and are not attached to any active
+                dataset.
+              </p>
+              <div className="divide-y divide-[var(--dd-border-subtle)] rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)]">
+                {previousDatasetCases.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between gap-2 px-3.5 py-2 text-[0.8125rem]"
+                  >
+                    <span className="truncate text-[var(--dd-text-primary)]">
+                      <span className="font-mono text-[0.75rem] text-[var(--dd-text-muted)]">
+                        {c.id} ({c.datasetFileName}) ·{' '}
+                      </span>
+                      {c.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openCaseById(c.id)}
+                      className="shrink-0 cursor-pointer font-mono text-[0.75rem] text-[var(--dd-accent-teal)] hover:underline"
+                    >
+                      Review (Read-Only)
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </PageContainer>
     );
@@ -219,9 +537,9 @@ export function InvestigationCenterPage() {
     const isProfileFailure = profilingStatus === 'error';
     const message = isProfileFailure
       ? (profilingError ??
-        'Module 03 schema profiling failed before investigation could run.')
+        'Dataset schema profiling failed before investigation could run.')
       : (statisticsError ??
-        'Module 04 statistical analysis failed before investigation could run.');
+        'Statistical analysis failed before investigation could run.');
 
     return (
       <PageContainer width="standard">
@@ -286,8 +604,8 @@ export function InvestigationCenterPage() {
                 Running Deterministic Investigation
               </h2>
               <p className="text-[0.8125rem] text-[var(--dd-text-secondary)]">
-                Evaluating Module 03 quality signals, Module 04 statistical
-                distributions, IQR fences, and pairwise correlations…
+                Evaluating data quality signals, statistical distributions, IQR
+                fences, and pairwise correlations…
               </p>
             </div>
           </section>
@@ -297,58 +615,185 @@ export function InvestigationCenterPage() {
   }
 
   const { overview } = investigationSummary;
+  const activeCaseCount = currentDatasetCases.filter((c) => !c.archived).length;
   const hasActiveUiFilters =
     severityFilter !== 'all' ||
     classificationFilter !== 'all' ||
+    assignmentFilter !== 'all' ||
     normalizedQuery.length > 0;
 
   return (
     <PageContainer width="wide">
       <div
-        className="dd-anim-file-enter space-y-6"
+        className="dd-anim-file-enter space-y-8"
         data-testid="investigation-center-workspace"
       >
-        {/* Header Dossier & Detection Parameter Controls */}
-        <section className="dd-surface-primary space-y-4 p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-3">
-                <DossierLabel
-                  code="SEC-04"
-                  label="Module 07 · Deterministic Insights & Anomaly Detection"
-                />
-                <StatusIndicator
-                  tone={
-                    overview.dataQualityIssueCount > 0
-                      ? 'warning'
-                      : overview.totalFindings > 0
-                        ? 'analytical'
-                        : 'verified'
+        {/* Shared Workspace Header */}
+        <WorkspaceHeader
+          code="SEC-04"
+          sectionLabel="Automated Insights & Cases"
+          title="Investigation Center"
+          status={
+            <StatusIndicator
+              tone={
+                overview.dataQualityIssueCount > 0
+                  ? 'warning'
+                  : overview.totalFindings > 0
+                    ? 'analytical'
+                    : 'verified'
+              }
+              label={
+                overview.totalFindings === 0
+                  ? 'No Anomalies Triggered'
+                  : `${formatCount(overview.totalFindings)} ${overview.totalFindings === 1 ? 'Finding' : 'Findings'} · ${formatCount(activeCaseCount)} ${activeCaseCount === 1 ? 'Case' : 'Cases'}`
+              }
+            />
+          }
+          context={`Active dataset in memory: ${activeDataset.fileName} · ${formatCount(datasetProfile.rowCount)} rows · ${formatCount(datasetProfile.columnCount)} columns · Computed in ${formatCount(investigationSummary.durationMs)} ms`}
+          navigationLinks={[
+            {
+              label: 'Data Explorer',
+              to: '/explorer',
+              testId: 'investigation-nav-explorer',
+            },
+            {
+              label: 'Visualization Studio',
+              to: '/visualizations',
+              testId: 'investigation-nav-visualizations',
+            },
+            {
+              label: 'AI Assistant',
+              to: '/assistant',
+              testId: 'investigation-nav-assistant',
+            },
+          ]}
+          actions={
+            <Link
+              to="/reports?source=dataset&type=investigation_dossier"
+              data-testid="investigation-create-report-link"
+              className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-2 font-mono text-[0.78125rem] font-medium text-[var(--dd-text-primary)] transition-colors hover:bg-[var(--dd-accent-teal)]/20 whitespace-nowrap"
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Create Report</span>
+            </Link>
+          }
+        />
+
+        {/* Band 1: Clean 4-Column Investigation KPI Summary */}
+        <section
+          aria-label="Investigation summary metrics"
+          className="dd-surface-primary p-5"
+        >
+          <dl
+            data-testid="investigation-overview-strip"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <div className="space-y-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-4 py-3.5">
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-text-muted)]">
+                Total Findings
+              </dt>
+              <dd className="font-mono text-[1.5rem] font-semibold leading-tight text-[var(--dd-text-primary)] dd-tabular">
+                {formatCount(overview.totalFindings)}
+              </dd>
+              <dd className="font-mono text-[0.71875rem] text-[var(--dd-text-secondary)] dd-tabular">
+                {formatCount(overview.affectedColumnCount)} /{' '}
+                {formatCount(datasetProfile.columnCount)} affected columns
+              </dd>
+            </div>
+
+            <div className="space-y-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-4 py-3.5">
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-accent-teal)]">
+                Active Cases
+              </dt>
+              <dd className="font-mono text-[1.5rem] font-semibold leading-tight text-[var(--dd-text-primary)] dd-tabular">
+                {formatCount(activeCaseCount)}
+              </dd>
+              <dd className="font-mono text-[0.71875rem] text-[var(--dd-text-secondary)] dd-tabular">
+                {formatCount(unassignedCount)} unassigned ·{' '}
+                <span
+                  className={
+                    importantUnresolvedCount > 0
+                      ? 'text-[var(--dd-status-anomaly)]'
+                      : undefined
                   }
-                  label={
-                    overview.totalFindings === 0
-                      ? 'No Anomalies Triggered'
-                      : `${formatCount(overview.totalFindings)} ${overview.totalFindings === 1 ? 'Finding' : 'Findings'}`
-                  }
-                />
+                >
+                  {formatCount(importantUnresolvedCount)} urgent unresolved
+                </span>
+              </dd>
+            </div>
+
+            <div className="space-y-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-4 py-3.5">
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-status-anomaly)]">
+                Data-Quality Issues
+              </dt>
+              <dd className="font-mono text-[1.5rem] font-semibold leading-tight text-[var(--dd-text-primary)] dd-tabular">
+                {formatCount(overview.dataQualityIssueCount)}
+              </dd>
+              <dd className="font-mono text-[0.71875rem] text-[var(--dd-text-secondary)] dd-tabular">
+                {formatCount(overview.bySeverity.critical)} critical ·{' '}
+                {formatCount(overview.bySeverity.high)} high severity
+              </dd>
+            </div>
+
+            <div className="space-y-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-4 py-3.5">
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-status-warning)]">
+                Outliers &amp; Observations
+              </dt>
+              <dd className="font-mono text-[1.5rem] font-semibold leading-tight text-[var(--dd-text-primary)] dd-tabular">
+                {formatCount(
+                  overview.statisticalOutlierCount +
+                    overview.notableObservationCount,
+                )}
+              </dd>
+              <dd className="font-mono text-[0.71875rem] text-[var(--dd-text-secondary)] dd-tabular">
+                {formatCount(overview.statisticalOutlierCount)} Statistical
+                Outliers · {formatCount(overview.notableObservationCount)}{' '}
+                Notable Observations
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        {/* Band 2: Investigation Cases & AI Synthesis */}
+        <section
+          aria-label="Investigation cases workspace"
+          data-testid="investigation-cases-section"
+          className="space-y-4"
+        >
+          <CasesOverviewPanel
+            currentDatasetCases={currentDatasetCases}
+            previousDatasetCases={previousDatasetCases}
+            insights={investigationSummary.insights}
+            verifiedAiBrief={verifiedAiBrief}
+            onCreateManualCase={handleCreateManualCase}
+            onOpenCase={openCaseById}
+            onReopenCase={reopenCaseById}
+            onCreateCaseFromRecommendation={handleCreateCaseFromRecommendation}
+          />
+        </section>
+
+        {/* Band 3: Automated Findings Registry (explicitly separated from Cases) */}
+        <section
+          aria-label="Automated findings registry"
+          data-testid="investigation-findings-section"
+          className="space-y-5 border-t border-[var(--dd-border-subtle)] pt-8"
+        >
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-1">
+              <div className="font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-[var(--dd-text-muted)]">
+                AUTOMATED FINDINGS REGISTRY ·{' '}
+                {formatCount(overview.totalFindings)}{' '}
+                {overview.totalFindings === 1 ? 'SIGNAL' : 'SIGNALS'}
               </div>
-
-              <h2 className="truncate text-[1.25rem] font-semibold tracking-[-0.02em] text-[var(--dd-text-primary)]">
-                {activeDataset.fileName}
-              </h2>
-
-              <p className="font-mono text-[0.75rem] text-[var(--dd-text-muted)] dd-tabular">
-                Active dataset in memory: {activeDataset.fileName} ·{' '}
-                {formatCount(datasetProfile.rowCount)} rows ·{' '}
-                {formatCount(datasetProfile.columnCount)} columns · Computed in{' '}
-                {formatCount(investigationSummary.durationMs)} ms
-              </p>
+              <h3 className="text-[1.125rem] font-semibold tracking-[-0.015em] text-[var(--dd-text-primary)]">
+                Deterministic Findings &amp; Anomaly Signals
+              </h3>
             </div>
 
             {/* Detection Controls (IQR multiplier + optional Z-score) */}
             <div
               data-testid="anomaly-detection-controls"
-              className="flex flex-wrap items-center gap-3 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-recessed)] px-3.5 py-2.5"
+              className="flex flex-wrap items-center gap-3 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-subtle)] bg-[var(--dd-surface-primary)] px-3.5 py-2"
             >
               <div className="flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.06em] text-[var(--dd-text-muted)]">
                 <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
@@ -368,7 +813,7 @@ export function InvestigationCenterPage() {
                       iqrMultiplier: Number(e.target.value),
                     }))
                   }
-                  className="rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-2 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] outline-none focus:border-[var(--dd-accent-teal-border)]"
+                  className="rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-2 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] outline-none focus:border-[var(--dd-accent-teal-border)]"
                 >
                   {IQR_MULTIPLIER_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -403,7 +848,7 @@ export function InvestigationCenterPage() {
                       zScoreThreshold: Number(e.target.value),
                     }))
                   }
-                  className="rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-2 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] outline-none focus:border-[var(--dd-accent-teal-border)]"
+                  className="rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-2 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] outline-none focus:border-[var(--dd-accent-teal-border)]"
                 >
                   {ZSCORE_THRESHOLD_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -415,101 +860,47 @@ export function InvestigationCenterPage() {
             </div>
           </div>
 
-          {/* Dataset Findings Overview Strip (unboxed tabular KPIs) */}
-          <dl
-            data-testid="investigation-overview-strip"
-            className="grid grid-cols-2 gap-4 border-t border-[var(--dd-border-subtle)] pt-4 sm:grid-cols-5"
-          >
-            <div className="space-y-0.5">
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-text-muted)]">
-                Total Findings
-              </dt>
-              <dd className="font-mono text-[1.375rem] font-semibold text-[var(--dd-text-primary)] dd-tabular">
-                {formatCount(overview.totalFindings)}
-              </dd>
-            </div>
-
-            <div className="space-y-0.5">
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-status-anomaly)]">
-                Data-Quality Issues
-              </dt>
-              <dd className="font-mono text-[1.375rem] font-semibold text-[var(--dd-text-primary)] dd-tabular">
-                {formatCount(overview.dataQualityIssueCount)}
-              </dd>
-            </div>
-
-            <div className="space-y-0.5">
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-accent-teal)]">
-                Statistical Outliers
-              </dt>
-              <dd className="font-mono text-[1.375rem] font-semibold text-[var(--dd-text-primary)] dd-tabular">
-                {formatCount(overview.statisticalOutlierCount)}
-              </dd>
-            </div>
-
-            <div className="space-y-0.5">
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-status-warning)]">
-                Notable Observations
-              </dt>
-              <dd className="font-mono text-[1.375rem] font-semibold text-[var(--dd-text-primary)] dd-tabular">
-                {formatCount(overview.notableObservationCount)}
-              </dd>
-            </div>
-
-            <div className="space-y-0.5">
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.07em] text-[var(--dd-text-muted)]">
-                Affected Columns
-              </dt>
-              <dd className="font-mono text-[1.375rem] font-semibold text-[var(--dd-text-primary)] dd-tabular">
-                {formatCount(overview.affectedColumnCount)} /{' '}
-                {formatCount(datasetProfile.columnCount)}
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        {/* Zero-findings clean dataset state */}
-        {overview.totalFindings === 0 ? (
-          <section
-            data-testid="investigation-clean-state"
-            className="dd-surface-primary space-y-4 p-8 text-center"
-          >
-            <CheckCircle2
-              className="mx-auto h-7 w-7 text-[var(--dd-status-verified)]"
-              aria-hidden="true"
-            />
-            <div className="space-y-1.5">
-              <h3 className="text-[1.0625rem] font-semibold text-[var(--dd-text-primary)]">
-                No deterministic anomalies or quality warnings triggered
-              </h3>
-              <p className="mx-auto max-w-xl text-[0.875rem] text-[var(--dd-text-secondary)]">
-                {datasetProfile.rowCount === 0
-                  ? 'This dataset contains zero data rows. Import a file with observations to run automated anomaly checks.'
-                  : 'All checked columns fall within the current IQR thresholds, completeness targets, and distribution bounds. You can enable Z-score detection or inspect raw records in Data Explorer.'}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-              <Link
-                to="/explorer"
-                className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-3.5 py-1.5 text-[0.8125rem] font-medium text-[var(--dd-text-primary)] hover:border-[var(--dd-accent-teal-border)]"
-              >
-                Open Data Explorer
-              </Link>
-              <Link
-                to="/visualizations"
-                className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-1.5 text-[0.8125rem] font-medium text-[var(--dd-text-primary)]"
-              >
-                Open Visualization Studio
-              </Link>
-            </div>
-          </section>
-        ) : (
-          <>
-            {/* Search, Severity, Classification & Sort Toolbar */}
-            <section
-              aria-label="Filter and sort findings"
-              className="dd-surface-primary space-y-3.5 p-4 sm:p-5"
+          {overview.totalFindings === 0 ? (
+            <div
+              data-testid="investigation-clean-state"
+              className="dd-surface-primary space-y-4 p-8 text-center"
             >
+              <CheckCircle2
+                className="mx-auto h-7 w-7 text-[var(--dd-status-verified)]"
+                aria-hidden="true"
+              />
+              <div className="space-y-1.5">
+                <h4 className="text-[1.0625rem] font-semibold text-[var(--dd-text-primary)]">
+                  No deterministic anomalies or quality warnings triggered
+                </h4>
+                <p className="mx-auto max-w-xl text-[0.875rem] text-[var(--dd-text-secondary)]">
+                  {datasetProfile.rowCount === 0
+                    ? 'This dataset contains zero data rows. Import a file with observations to run automated anomaly checks.'
+                    : 'All checked columns fall within the current IQR thresholds, completeness targets, and distribution bounds. You can enable Z-score detection, open a manual investigation case above, or inspect records in Data Explorer.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                <Link
+                  to="/explorer"
+                  className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-3.5 py-1.5 text-[0.8125rem] font-medium text-[var(--dd-text-primary)] hover:border-[var(--dd-accent-teal-border)]"
+                >
+                  Open Data Explorer
+                </Link>
+                <Link
+                  to="/visualizations"
+                  className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-1.5 text-[0.8125rem] font-medium text-[var(--dd-text-primary)]"
+                >
+                  Open Visualization Studio
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Search, Severity, Classification, Assignment & Sort Toolbar */}
+              <div
+                aria-label="Filter and sort findings"
+                className="dd-surface-primary space-y-3.5 p-4 sm:p-5"
+              >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 {/* Search input */}
                 <div className="relative flex-1 lg:max-w-md">
@@ -537,8 +928,27 @@ export function InvestigationCenterPage() {
                   )}
                 </div>
 
-                {/* Sort & Classification Filter */}
+                {/* Sort, Assignment & Classification Filter */}
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <select
+                    aria-label="Filter by case assignment"
+                    value={assignmentFilter}
+                    onChange={(e) =>
+                      setAssignmentFilter(e.target.value as AssignmentFilter)
+                    }
+                    className="rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-recessed)] px-2.5 py-2 text-[0.8125rem] text-[var(--dd-text-primary)] outline-none focus:border-[var(--dd-accent-teal-border)]"
+                  >
+                    <option value="all">
+                      All Findings ({formatCount(overview.totalFindings)})
+                    </option>
+                    <option value="unassigned">
+                      Unassigned Findings ({formatCount(unassignedCount)})
+                    </option>
+                    <option value="important_unresolved">
+                      Important Unresolved ({formatCount(importantUnresolvedCount)})
+                    </option>
+                  </select>
+
                   <select
                     aria-label="Filter by finding classification"
                     value={classificationFilter}
@@ -629,6 +1039,7 @@ export function InvestigationCenterPage() {
                     onClick={() => {
                       setSeverityFilter('all');
                       setClassificationFilter('all');
+                      setAssignmentFilter('all');
                       setSearchQuery('');
                     }}
                     className="ml-auto cursor-pointer font-mono text-[0.75rem] text-[var(--dd-accent-teal)] hover:text-[var(--dd-accent-teal-hover)]"
@@ -637,7 +1048,69 @@ export function InvestigationCenterPage() {
                   </button>
                 )}
               </div>
-            </section>
+
+              {/* Multi-finding selection bar */}
+              {selectedFindingIds.length > 0 && (
+                <div
+                  data-testid="finding-selection-bar"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-3.5 py-2"
+                >
+                  <span className="font-mono text-[0.75rem] text-[var(--dd-text-primary)]">
+                    {formatCount(selectedFindingIds.length)} findings selected
+                    for investigation
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCreateCaseFromSelected}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-surface-primary)] px-3 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] hover:text-[var(--dd-accent-teal)] whitespace-nowrap"
+                    >
+                      <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Create Case from Selected</span>
+                    </button>
+                    <Link
+                      to={`/reports?source=findings&findings=${encodeURIComponent(selectedFindingIds.join(','))}`}
+                      className="inline-flex items-center gap-1.5 rounded-[var(--dd-radius-sm)] border border-[var(--dd-border-default)] bg-[var(--dd-surface-primary)] px-3 py-1 font-mono text-[0.75rem] text-[var(--dd-text-primary)] hover:border-[var(--dd-accent-teal-border)] whitespace-nowrap"
+                    >
+                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Create Report</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFindingIds([])}
+                      className="cursor-pointer font-mono text-[0.75rem] text-[var(--dd-text-secondary)] hover:text-[var(--dd-text-primary)]"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+              </div>
+
+            {focusedFindingId &&
+              investigationSummary.insights.some(
+                (item) => item.id === focusedFindingId,
+              ) && (
+                <div
+                  data-testid="investigation-focused-finding-banner"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--dd-radius-sm)] border border-[var(--dd-accent-teal-border)] bg-[var(--dd-accent-teal-dim)] px-4 py-2.5 text-[0.8125rem] text-[var(--dd-text-primary)]"
+                >
+                  <span className="font-mono text-[0.75rem]">
+                    Focused finding from navigation: {focusedFindingId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete('finding');
+                      setSearchParams(next, { replace: true });
+                    }}
+                    className="cursor-pointer font-mono text-[0.75rem] text-[var(--dd-accent-teal)] hover:text-[var(--dd-accent-teal-hover)]"
+                  >
+                    Clear Focus
+                  </button>
+                </div>
+              )}
 
             {/* Filtered Results Grouped by Category */}
             {groupedInsights.length === 0 ? (
@@ -680,7 +1153,23 @@ export function InvestigationCenterPage() {
 
                       <div className="grid grid-cols-1 gap-4">
                         {items.map((insight) => (
-                          <InsightCard key={insight.id} insight={insight} />
+                          <InsightCard
+                            key={`${insight.id}-${focusedFindingId === insight.id ? 'focused' : 'normal'}`}
+                            insight={insight}
+                            initiallyExpanded={focusedFindingId === insight.id}
+                            isHighlighted={focusedFindingId === insight.id}
+                            isSelected={selectedFindingIds.includes(insight.id)}
+                            onToggleSelect={toggleSelectFinding}
+                            linkedCases={
+                              linkedCasesByFindingId.get(insight.id) ?? []
+                            }
+                            availableCases={activeCaseChoices}
+                            onCreateCaseFromFinding={
+                              handleCreateCaseFromFinding
+                            }
+                            onAttachToCase={handleAttachFinding}
+                            onOpenCase={openCaseById}
+                          />
                         ))}
                       </div>
                     </section>
@@ -688,8 +1177,9 @@ export function InvestigationCenterPage() {
                 })}
               </div>
             )}
-          </>
-        )}
+            </div>
+          )}
+        </section>
       </div>
     </PageContainer>
   );

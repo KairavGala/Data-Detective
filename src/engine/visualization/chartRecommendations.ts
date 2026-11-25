@@ -74,7 +74,7 @@ export function generateChartRecommendations(
       yColumnId: primaryNum.columnId,
       xAxisLabel: dateCol.name,
       yAxisLabel: primaryNum.name,
-      reason: `Chronological trend pairing M03 date column "${dateCol.name}" with numeric measure "${primaryNum.name}".`,
+      reason: `Chronological trend pairing date column "${dateCol.name}" with numeric measure "${primaryNum.name}".`,
       priority: 10,
     });
   }
@@ -137,7 +137,7 @@ export function generateChartRecommendations(
       xColumnId: num.columnId,
       xAxisLabel: num.name,
       yAxisLabel: '',
-      reason: `Exact M04 five-number quartile summary (Min, Q1, Median, Q3, Max) for "${num.name}".`,
+      reason: `Exact five-number quartile summary (Min, Q1, Median, Q3, Max) for "${num.name}".`,
       priority: 50,
     });
   }

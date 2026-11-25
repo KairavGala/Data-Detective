@@ -30,7 +30,7 @@ export function DatasetStatisticsOverview({
         <div className="space-y-1.5">
           <DossierLabel
             code="STATISTICAL SUMMARY"
-            label={`Module 04 · ${summary.fileName}`}
+            label={summary.fileName}
           />
           <h3
             id="stats-dataset-summary-heading"
@@ -118,7 +118,7 @@ export function DatasetStatisticsOverview({
           to="/"
           className="text-[var(--dd-accent-teal)] transition-colors hover:text-[var(--dd-accent-teal-hover)] whitespace-nowrap shrink-0"
         >
-          Inspect M03 Schema &amp; Missing Policy →
+          Inspect Schema &amp; Missing Policy →
         </Link>
       </div>
     </section>

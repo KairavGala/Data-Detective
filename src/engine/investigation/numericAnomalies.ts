@@ -278,7 +278,7 @@ export function runSinglePassNumericInvestigation(
             rowNumber,
             rowIndex: r,
             value: formatCellValue(raw) || '(empty)',
-            reason: 'Non-numeric or non-finite value in M03 numeric column',
+            reason: 'Non-numeric or non-finite value in numeric column',
           });
         }
         continue;

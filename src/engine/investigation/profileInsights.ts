@@ -58,7 +58,7 @@ export function generateProfileAndStatInsights(
         category: 'data_quality',
         classification: 'data_quality_issue',
         title: `High missing-value concentration in "${col.name}"`,
-        explanation: `${formatPercentage(col.missingPercentage, 1)} of rows (${formatCount(col.missingCount)} of ${formatCount(col.totalCount)}) are missing under the active Module 03 missing-value policy.`,
+        explanation: `${formatPercentage(col.missingPercentage, 1)} of rows (${formatCount(col.missingCount)} of ${formatCount(col.totalCount)}) are missing under the active missing-value policy.`,
         affectedColumnIds: [col.columnId],
         affectedColumnNames: [col.name],
         evidence: [
@@ -135,7 +135,7 @@ export function generateProfileAndStatInsights(
         category: 'data_quality',
         classification: 'data_quality_issue',
         title: `Invalid or non-finite values in numeric column "${num.name}"`,
-        explanation: `${formatCount(num.invalidCount)} non-missing ${num.invalidCount === 1 ? 'cell' : 'cells'} (${formatPercentage(invalidPct, 2)} of rows) could not be parsed as finite numbers and were excluded from Module 04 statistics.`,
+        explanation: `${formatCount(num.invalidCount)} non-missing ${num.invalidCount === 1 ? 'cell' : 'cells'} (${formatPercentage(invalidPct, 2)} of rows) could not be parsed as finite numbers and were excluded from numeric statistics.`,
         affectedColumnIds: [num.columnId],
         affectedColumnNames: [num.name],
         evidence: [
@@ -170,7 +170,7 @@ export function generateProfileAndStatInsights(
         category: 'data_quality',
         classification: 'data_quality_issue',
         title: `Unparseable date entries in "${col.name}"`,
-        explanation: `${formatCount(col.dateStats.invalidCount)} non-missing entries (${formatPercentage(invalidPct, 2)} of rows) failed Module 03 date validation.`,
+        explanation: `${formatCount(col.dateStats.invalidCount)} non-missing entries (${formatPercentage(invalidPct, 2)} of rows) failed date validation.`,
         affectedColumnIds: [col.columnId],
         affectedColumnNames: [col.name],
         evidence: [
@@ -437,7 +437,7 @@ export function generateProfileAndStatInsights(
               label: 'Uniqueness Ratio',
               value: formatPercentage(col.distinctRatio * 100, 1),
             },
-            { label: 'Column Type (M03)', value: col.detectedType },
+            { label: 'Detected Column Type', value: col.detectedType },
           ],
           severity: col.distinctRatio >= 0.85 ? 'medium' : 'low',
           confidence: 'high',
