@@ -261,8 +261,10 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
         type: 'boxplot',
         title: 'Custom Amount Quartiles',
         xColumnId: 'col-2', // Amount (numeric)
-        xLabel: 'Order Amount ($)',
-        yLabel: 'Distribution',
+        xAxisLabel: 'Order Amount ($)',
+        yAxisLabel: 'Distribution',
+        categorySort: 'freq_desc',
+        maxCategories: 10,
         showLegend: false,
         binCount: 12,
       };
@@ -272,6 +274,8 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
         type: 'bar',
         title: 'Regional Mix (Alphabetical)',
         xColumnId: 'col-1', // Region (categorical)
+        xAxisLabel: 'Region',
+        yAxisLabel: 'Count',
         categorySort: 'label_asc',
         maxCategories: 6,
         showLegend: true,
@@ -282,6 +286,11 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
         type: 'histogram',
         title: 'Deleted Column Chart',
         xColumnId: 'col-nonexistent',
+        xAxisLabel: 'Missing',
+        yAxisLabel: 'Count',
+        categorySort: 'freq_desc',
+        maxCategories: 10,
+        showLegend: true,
       };
 
       const invalidTypeMismatch: ChartConfig = {
@@ -290,6 +299,11 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
         title: 'Invalid Scatter on Text',
         xColumnId: 'col-1', // Region (categorical, not numeric)
         yColumnId: 'col-2',
+        xAxisLabel: 'Region',
+        yAxisLabel: 'Amount',
+        categorySort: 'freq_desc',
+        maxCategories: 10,
+        showLegend: true,
       };
 
       const result = validateChartConfigsForDataset(
@@ -304,7 +318,7 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
         type: 'boxplot',
         title: 'Custom Amount Quartiles',
         xColumnId: 'col-2',
-        xLabel: 'Order Amount ($)',
+        xAxisLabel: 'Order Amount ($)',
         showLegend: false,
       });
       expect(result.validCharts[1]).toMatchObject({
@@ -322,7 +336,7 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
       // Distinct custom settings produce distinct signatures
       const altBar: ChartConfig = {
         ...customBar,
-        categorySort: 'count_desc',
+        categorySort: 'freq_desc',
       };
       expect(getChartConfigSignature(customBar)).not.toBe(
         getChartConfigSignature(altBar),
@@ -561,14 +575,15 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
       expect(builderForm).toHaveTextContent('Bespoke Amount Boxplot');
       expect(builderForm).toHaveTextContent('Studio Selection');
 
-      const checkedChartBoxes = within(builderForm)
-        .getAllByRole('checkbox')
-        .filter(
-          (cb) =>
-            (cb as HTMLInputElement).checked &&
-            cb.closest('label')?.textContent?.includes('Bespoke Amount Boxplot'),
-        );
-      expect(checkedChartBoxes).toHaveLength(1);
+      const chartsPicker = within(builderForm).getByTestId(
+        'report-builder-charts-picker',
+      );
+      const selectedChartButtons = within(chartsPicker)
+        .getAllByRole('button')
+        .filter((btn) => btn.getAttribute('aria-pressed') === 'true');
+      expect(selectedChartButtons).toHaveLength(1);
+      expect(selectedChartButtons[0]).toHaveTextContent('Bespoke Amount Boxplot');
+      expect(selectedChartButtons[0]).toHaveTextContent('Studio Selection');
 
       // Generate report and verify custom chart renders in A4 Preview and remains visible in ReportEditorSidebar Content tab
       await user.type(
@@ -586,7 +601,7 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
 
       const editorSidebar = screen.getByTestId('report-editor-sidebar');
       await user.click(
-        within(editorSidebar).getByRole('button', { name: /Content/i }),
+        within(editorSidebar).getByRole('tab', { name: /Evidence/i }),
       );
       expect(editorSidebar).toHaveTextContent('Bespoke Amount Boxplot');
 
@@ -595,8 +610,10 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
       const staleNotice = await screen.findByTestId(
         'report-builder-invalid-charts-notice',
       );
-      expect(staleNotice).toHaveTextContent(/could not be applied/i);
-      expect(staleNotice).toHaveTextContent(/different dataset/i);
+      expect(staleNotice).toHaveTextContent(/previous dataset or schema version/i);
+      expect(staleNotice).toHaveTextContent(/were not applied/i);
+      const stalePicker = screen.getByTestId('report-builder-charts-picker');
+      expect(stalePicker).toHaveTextContent(/Charts \(0\//i);
 
       // Verify ordinary dataset report creation still selects default recommended charts
       await user.click(screen.getByRole('button', { name: /Report Library/i }));
@@ -612,8 +629,10 @@ describe('Consolidation Batch 4 — Cross-Module Journeys & Final UX Polish', ()
           'report-builder-invalid-charts-notice',
         ),
       ).not.toBeInTheDocument();
-      expect(ordinaryForm).toHaveTextContent(/Visualizations \(\d+ selected\)/i);
-      expect(ordinaryForm).not.toHaveTextContent('Visualizations (0 selected)');
+      const ordinaryPicker = within(ordinaryForm).getByTestId(
+        'report-builder-charts-picker',
+      );
+      expect(ordinaryPicker).toHaveTextContent(/Charts \([1-9]\d*\//i);
     }, 25_000);
   });
 

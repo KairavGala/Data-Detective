@@ -145,22 +145,6 @@ export function ReportEditorSidebar({
     allEditorCharts.push(cfg);
   }
 
-  // Preserve any custom charts attached to the report alongside recommended charts
-  const allEditorCharts: ChartConfig[] = [];
-  const seenEditorChartKeys = new Set<string>();
-  for (const cfg of report.selectedCharts) {
-    const key = chartKey(cfg);
-    if (seenEditorChartKeys.has(key)) continue;
-    seenEditorChartKeys.add(key);
-    allEditorCharts.push(cfg);
-  }
-  for (const cfg of recommendedCharts) {
-    const key = chartKey(cfg);
-    if (seenEditorChartKeys.has(key)) continue;
-    seenEditorChartKeys.add(key);
-    allEditorCharts.push(cfg);
-  }
-
   const toggleFindingSelection = (findingId: string) => {
     if (!isMatched || !activeSources) return;
     const exists = report.selectedFindingIds.includes(findingId);
